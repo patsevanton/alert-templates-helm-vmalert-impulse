@@ -45,5 +45,5 @@ jobs:
           file: ./app/Dockerfile
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:${{ steps.semver.outputs.version }}
-            ghcr.io/${{ github.repository }}:latest
+            ghcr.io/golden-signal-app:${{ steps.semver.outputs.version }}
+            ghcr.io/golden-signal-app:latest
