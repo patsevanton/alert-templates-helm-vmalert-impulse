@@ -49,6 +49,23 @@ func main() {
         }
     }()
 
+    // Фоновый генератор трафика для постоянных алертов
+    go func() {
+        ticker := time.NewTicker(2 * time.Second)
+        defer ticker.Stop()
+        client := &http.Client{
+            Timeout: 1 * time.Second,
+        }
+        for range ticker.C {
+            go func() {
+                resp, err := client.Get("http://localhost:8080/work")
+                if err == nil && resp != nil {
+                    resp.Body.Close()
+                }
+            }()
+        }
+    }()
+
     http.HandleFunc("/work", func(w http.ResponseWriter, r *http.Request) {
         start := time.Now()
         requestCount.Inc()
