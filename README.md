@@ -11,7 +11,7 @@
 Архитектура системы алертинга состоит из нескольких взаимосвязанных компонентов:
 
 ```
-Go-приложение → Prometheus-метрики → Helm-шаблоны → vmalert → Alertmanager → Impulse → Telegram
+Go-приложение → Helm-шаблоны → Prometheus-метрики → vmalert → Alertmanager → Impulse → Telegram
 ```
 
 **Компоненты:**
