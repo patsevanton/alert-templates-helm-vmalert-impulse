@@ -111,6 +111,13 @@ vmcluster:
 kubectl get secret vmks-grafana -n vmks -o jsonpath='{.data.admin-password}' | base64 --decode; echo
 ```
 
+```bash
+# Предварительный просмотр сгенерированных манифестов
+helm template ./chart
+
+# Валидация синтаксиса
+helm lint ./chart
+```
 
 ### Установка через Helm
 
