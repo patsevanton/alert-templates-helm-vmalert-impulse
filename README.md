@@ -68,8 +68,6 @@ helm upgrade --install vmks \
 Содержимое vmks-values.yaml:
 ```
 grafana:
-  plugins:
-    - victoriametrics-logs-datasource
   ingress:
     ingressClassName: nginx
     enabled: true
@@ -77,11 +75,6 @@ grafana:
       - grafana.apatsev.org.ru
     annotations:
       nginx.ingress.kubernetes.io/ssl-redirect: "false"
-      cert-manager.io/cluster-issuer: letsencrypt-prod
-    tls:
-      - hosts:
-          - grafana.apatsev.org.ru
-        secretName: grafana-tls
 defaultRules:
   groups:
     etcd:
