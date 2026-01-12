@@ -49,6 +49,69 @@ var (
 
 Метрики экспортируются через стандартный endpoint `/metrics`, совместимый с Prometheus. Гистограммы используются для измерения задержки, счетчики — для трафика и ошибок, а gauge — для контроля насыщения (например, количество активных горутин).
 
+
+### VM K8s Stack (метрики, Grafana)
+
+Пример установки victoria-metrics-k8s-stack c Grafana:
+
+```bash
+helm upgrade --install vmks \
+  oci://ghcr.io/victoriametrics/helm-charts/victoria-metrics-k8s-stack \
+  --namespace vmks \
+  --create-namespace \
+  --wait \
+  --version 0.66.1 \
+  --timeout 15m \
+  -f vmks-values.yaml
+```
+
+Содержимое vmks-values.yaml:
+```
+grafana:
+  plugins:
+    - victoriametrics-logs-datasource
+  ingress:
+    ingressClassName: nginx
+    enabled: true
+    hosts:
+      - grafana.apatsev.org.ru
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    tls:
+      - hosts:
+          - grafana.apatsev.org.ru
+        secretName: grafana-tls
+defaultRules:
+  groups:
+    etcd:
+      create: false
+kube-state-metrics:
+  metricLabelsAllowlist:
+    - pods=[*]
+vmsingle:
+  enabled: false
+vmcluster:
+  enabled: true
+  ingress:
+    select:
+      enabled: true
+      ingressClassName: nginx
+      annotations:
+        nginx.ingress.kubernetes.io/ssl-redirect: "false"
+      hosts:
+        - vmselect.apatsev.org.ru
+```
+
+Можно анализировать логи через explore Grafana.
+Откройте http://grafana.apatsev.org.ru/
+Для получения пароля admin от Grafana необходимо:
+
+```bash
+kubectl get secret vmks-grafana -n vmks -o jsonpath='{.data.admin-password}' | base64 --decode; echo
+```
+
+
 ### Установка через Helm
 
 Для установки приложения в Kubernetes-кластере используйте Helm:
@@ -68,14 +131,6 @@ kubectl get pods -n monitoring -l app=golden-signal-app
 kubectl port-forward -n monitoring svc/golden-signal-app 8080:8080
 curl http://localhost:8080/metrics
 curl http://localhost:8080/work
-```
-
-Для обновления конфигурации используйте:
-
-```bash
-helm upgrade golden-signal-app ./chart \
-  --namespace monitoring \
-  --set image.tag=new-tag
 ```
 
 ## Шаблонизация правил алертов в Helm

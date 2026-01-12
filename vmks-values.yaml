@@ -1,6 +1,4 @@
 grafana:
-  plugins:
-    - victoriametrics-logs-datasource
   ingress:
     ingressClassName: nginx
     enabled: true
@@ -8,20 +6,6 @@ grafana:
       - grafana.apatsev.org.ru
     annotations:
       nginx.ingress.kubernetes.io/ssl-redirect: "false"
-      # cert-manager.io/cluster-issuer: letsencrypt-prod
-    # tls:
-    #   - hosts:
-    #       - grafana.apatsev.org.ru
-    #     secretName: grafana-tls
-defaultDatasources:
-  extra:
-    - name: victoriametrics-logs
-      access: proxy
-      type: victoriametrics-logs-datasource
-      url: http://victoria-logs-cluster-vlselect.victoria-logs-cluster.svc.cluster.local:9471
-      jsonData:
-        maxLines: 1000
-      version: 1
 defaultRules:
   groups:
     etcd:
@@ -39,10 +23,5 @@ vmcluster:
       ingressClassName: nginx
       annotations:
         nginx.ingress.kubernetes.io/ssl-redirect: "false"
-        # cert-manager.io/cluster-issuer: letsencrypt-prod
       hosts:
         - vmselect.apatsev.org.ru
-      # tls:
-      #   - secretName: victoriametrics-tls
-      #     hosts:
-      #       - vmselect.apatsev.org.ru
