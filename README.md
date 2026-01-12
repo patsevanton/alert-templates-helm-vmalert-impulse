@@ -55,17 +55,17 @@ var (
 
 ```bash
 # Установка приложения через Helm
-helm install golden-signal ./chart \
+helm install golden-signal-app ./chart \
   --namespace monitoring \
   --create-namespace \
-  --set image.repository=your-registry/golden-signal \
+  --set image.repository=your-registry/golden-signal-app \
   --set image.tag=latest
 
 # Проверка статуса развертывания
-kubectl get pods -n monitoring -l app=golden-signal
+kubectl get pods -n monitoring -l app=golden-signal-app
 
 # Проверка метрик
-kubectl port-forward -n monitoring svc/golden-signal 8080:8080
+kubectl port-forward -n monitoring svc/golden-signal-app 8080:8080
 curl http://localhost:8080/metrics
 curl http://localhost:8080/work
 ```
@@ -73,7 +73,7 @@ curl http://localhost:8080/work
 Для обновления конфигурации используйте:
 
 ```bash
-helm upgrade golden-signal ./chart \
+helm upgrade golden-signal-app ./chart \
   --namespace monitoring \
   --set image.tag=new-tag
 ```
@@ -181,7 +181,7 @@ Impulse позволяет создавать структурированные
 *Метрика:* app_errors_total
 *Текущее значение:* 0.08
 *Порог:* 0.05
-*Сервис:* golden-signal
+*Сервис:* golden-signal-app
 *Namespace:* production
 
 [Открыть в Grafana](https://grafana.example.com/...)
