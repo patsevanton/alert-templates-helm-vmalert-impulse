@@ -118,7 +118,7 @@ helm lint ./chart
 
 ```bash
 # Установка приложения через Helm
-helm install golden-signal-app ./chart \
+helm upgrade --install golden-signal-app ./chart \
   --namespace monitoring \
   --create-namespace \
   --set image.repository=ghcr.io/patsevanton/alert-templates-helm-vmalert-impulse \
