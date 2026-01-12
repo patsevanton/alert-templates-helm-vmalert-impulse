@@ -58,8 +58,8 @@ var (
 helm install golden-signal-app ./chart \
   --namespace monitoring \
   --create-namespace \
-  --set image.repository=your-registry/golden-signal-app \
-  --set image.tag=latest
+  --set image.repository=ghcr.io/patsevanton/alert-templates-helm-vmalert-impulse \
+  --set image.tag=1.3.0
 
 # Проверка статуса развертывания
 kubectl get pods -n monitoring -l app=golden-signal-app

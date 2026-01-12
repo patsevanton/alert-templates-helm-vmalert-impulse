@@ -1,0 +1,16 @@
+app
+cluster-issuer.yaml
+.cursorignore
+.git
+.github
+.gitignore
+ip-dns.tf
+k8s.tf
+LICENSE
+net.tf
+.terraform
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+versions.tf
+vmks-values.yaml
