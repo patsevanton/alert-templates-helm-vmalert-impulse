@@ -1,5 +1,5 @@
 app
-cluster-issuer.yaml
+chart
 .cursorignore
 .git
 .github
@@ -8,6 +8,7 @@ ip-dns.tf
 k8s.tf
 LICENSE
 net.tf
+README.md
 .terraform
 .terraform.lock.hcl
 terraform.tfstate
