@@ -25,3 +25,23 @@ vmcluster:
         nginx.ingress.kubernetes.io/ssl-redirect: "false"
       hosts:
         - vmselect.apatsev.org.ru
+alertmanager:
+  enabled: true
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - alertmanager.apatsev.org.ru
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+vmalert:
+  enabled: true
+  ingress:
+    enabled: true
+    ingressClassName: istio
+    hosts:
+      - vmalert.apatsev.org.ru
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    path: "/"
+    pathType: Prefix
