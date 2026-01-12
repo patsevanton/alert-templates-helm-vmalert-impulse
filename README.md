@@ -49,16 +49,33 @@ var (
 
 Метрики экспортируются через стандартный endpoint `/metrics`, совместимый с Prometheus. Гистограммы используются для измерения задержки, счетчики — для трафика и ошибок, а gauge — для контроля насыщения (например, количество активных горутин).
 
-### Сборка и тестирование
+### Установка через Helm
 
-Для сборки и локального тестирования приложения:
+Для установки приложения в Kubernetes-кластере используйте Helm:
 
 ```bash
-docker build -t golden-signal -f app/Dockerfile app
-docker run -d --rm -p 8080:8080 --name golden-signal golden-signal
+# Установка приложения через Helm
+helm install golden-signal ./chart \
+  --namespace monitoring \
+  --create-namespace \
+  --set image.repository=your-registry/golden-signal \
+  --set image.tag=latest
+
+# Проверка статуса развертывания
+kubectl get pods -n monitoring -l app=golden-signal
+
+# Проверка метрик
+kubectl port-forward -n monitoring svc/golden-signal 8080:8080
 curl http://localhost:8080/metrics
 curl http://localhost:8080/work
-docker stop golden-signal
+```
+
+Для обновления конфигурации используйте:
+
+```bash
+helm upgrade golden-signal ./chart \
+  --namespace monitoring \
+  --set image.tag=new-tag
 ```
 
 ## Шаблонизация правил алертов в Helm
