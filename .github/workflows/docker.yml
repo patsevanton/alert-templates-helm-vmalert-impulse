@@ -1,58 +1,49 @@
-name: Build and Push Docker Image
+name: Release and Docker
 
 on:
   push:
     branches:
       - main
-    tags:
-      - 'v*'
-  workflow_dispatch:
-
-env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/golden-signal-app
 
 jobs:
-  build-and-push:
+  release-and-docker:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+      - name: Create Semver Release
+        id: semver
+        uses: huggingface/semver-release-action@latest
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Log in to GitHub Container Registry
+      - name: Print version and tag
+        run: |
+          echo "Version: ${{ steps.semver.outputs.version }}"
+          echo "Tag:     ${{ steps.semver.outputs.tag }}"
+
+      - name: Login to GHCR
+        if: steps.semver.outputs.tag != ''
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
-
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        if: steps.semver.outputs.tag != ''
+        uses: docker/build-push-action@v6
         with:
           context: ./app
           file: ./app/Dockerfile
           push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          tags: |
+            ghcr.io/${{ github.repository }}:${{ steps.semver.outputs.version }}
+            ghcr.io/${{ github.repository }}:latest
