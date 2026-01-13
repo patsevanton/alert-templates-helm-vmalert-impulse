@@ -35,7 +35,6 @@ alertmanager:
       tag: v0.28.1
     externalURL: ""
     routePrefix: /
-
   config:
     route:
       receiver: "impulse"
@@ -46,7 +45,6 @@ alertmanager:
         webhook_configs:
           - url: 'http://impulse.impulse.svc.cluster.local:5000/'
       - name: blackhole
-
   ingress:
     enabled: true
     ingressClassName: nginx
