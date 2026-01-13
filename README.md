@@ -246,7 +246,8 @@ Impulse выступает адаптером между Alertmanager и вне�
 ```bash
 helm repo add impulse https://eslupmi.github.io/helm-charts/packages
 helm repo update
-helm install impulse impulse/impulse --version 1.0.6 \
+helm upgrade --install impulse impulse/impulse \
+  --version 1.0.6 \
   --namespace monitoring \
   --create-namespace \
   -f values-impulse.yaml
