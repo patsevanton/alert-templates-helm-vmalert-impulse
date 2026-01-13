@@ -59,55 +59,7 @@ helm upgrade --install vmks \
 ```
 
 Содержимое vmks-values.yaml:
-```
-grafana:
-  ingress:
-    ingressClassName: nginx
-    enabled: true
-    hosts:
-      - grafana.apatsev.org.ru
-    annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "false"
-defaultRules:
-  groups:
-    etcd:
-      create: false
-kube-state-metrics:
-  metricLabelsAllowlist:
-    - pods=[*]
-vmsingle:
-  enabled: false
-vmcluster:
-  enabled: true
-  ingress:
-    select:
-      enabled: true
-      ingressClassName: nginx
-      annotations:
-        nginx.ingress.kubernetes.io/ssl-redirect: "false"
-      hosts:
-        - vmselect.apatsev.org.ru
-alertmanager:
-  enabled: true
-  ingress:
-    enabled: true
-    ingressClassName: nginx
-    hosts:
-      - alertmanager.apatsev.org.ru
-    annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "false"
-vmalert:
-  enabled: true
-  ingress:
-    enabled: true
-    ingressClassName: nginx
-    hosts:
-      - vmalert.apatsev.org.ru
-    annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "false"
-    path: "/"
-    pathType: Prefix
-```
+
 
 ### Установка через Helm
 
