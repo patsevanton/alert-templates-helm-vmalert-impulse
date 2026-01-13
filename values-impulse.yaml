@@ -1,11 +1,11 @@
 ingress:
   enabled: false
-  className: ""
+  className: nginx
   annotations: {}
     # kubernetes.io/ingress.class: nginx
     # kubernetes.io/tls-acme: "true"
   hosts:
-    - host: impulse.local
+    - host: impulse.apatsev.org.ru
       paths:
         - path: /
           pathType: ImplementationSpecific

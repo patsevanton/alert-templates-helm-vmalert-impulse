@@ -244,9 +244,12 @@ Impulse выступает адаптером между Alertmanager и вне�
 Для установки Impulse через Helm используйте следующие команды:
 
 ```bash
-helm repo add eslupmi https://eslupmi.github.io/helm-charts/packages
+helm repo add impulse https://eslupmi.github.io/helm-charts/packages
 helm repo update
-helm install impulse eslupmi/impulse
+helm install impulse impulse/impulse --version 1.0.6 \
+  --namespace monitoring \
+  --create-namespace \
+  -f values-impulse.yaml
 ```
 
 ### Настройка Telegram-бота
