@@ -107,21 +107,6 @@ vmalert:
     pathType: Prefix
 ```
 
-Можно анализировать логи через explore Grafana.
-
-Откройте http://grafana.apatsev.org.ru/
-
-Откройте http://vmselect.apatsev.org.ru/select/0/vmui
-
-Откройте http://alertmanager.apatsev.org.ru
-
-Откройте http://vmalert.apatsev.org.ru
-
-Для получения пароля admin от Grafana необходимо:
-```bash
-kubectl get secret vmks-grafana -n vmks -o jsonpath='{.data.admin-password}' | base64 --decode; echo
-```
-
 ### Установка через Helm
 
 Для установки приложения в Kubernetes-кластере используйте Helm:
@@ -204,4 +189,19 @@ helm upgrade --install impulse impulse/impulse \
   --namespace impulse \
   --create-namespace \
   -f values-impulse.yaml
+```
+
+Можно анализировать алерты через ссылки ниже.
+
+Откройте http://grafana.apatsev.org.ru/
+
+Откройте http://vmselect.apatsev.org.ru/select/0/vmui
+
+Откройте http://alertmanager.apatsev.org.ru
+
+Откройте http://vmalert.apatsev.org.ru
+
+Для получения пароля admin от Grafana необходимо:
+```bash
+kubectl get secret vmks-grafana -n vmks -o jsonpath='{.data.admin-password}' | base64 --decode; echo
 ```
