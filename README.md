@@ -118,7 +118,7 @@ vmalert:
 
 Можно анализировать логи через explore Grafana.
 Откройте http://grafana.apatsev.org.ru/
-Откройте http://vmselect.apatsev.org.ru
+Откройте http://vmselect.apatsev.org.ru/select/0/vmui
 Откройте http://alertmanager.apatsev.org.ru
 Откройте http://vmalert.apatsev.org.ru
 Для получения пароля admin от Grafana необходимо:
@@ -155,7 +155,7 @@ kubectl get pods -n golden-signal-app -l app=golden-signal-app
 
 # Проверка метрик
 ```
-kubectl port-forward -n monitoring svc/golden-signal-app 8080:8080
+kubectl port-forward -n golden-signal-app svc/golden-signal-app 8080:8080
 curl http://localhost:8080/metrics
 curl http://localhost:8080/work
 ```
