@@ -1,3 +1,5 @@
+app
+chart
 .cursorignore
 .git
 .github
@@ -11,5 +13,6 @@ README.md
 .terraform.lock.hcl
 terraform.tfstate
 terraform.tfstate.backup
+values-impulse.yaml
 versions.tf
 vmks-values.yaml
