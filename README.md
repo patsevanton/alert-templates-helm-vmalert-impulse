@@ -118,6 +118,9 @@ vmalert:
 
 Можно анализировать логи через explore Grafana.
 Откройте http://grafana.apatsev.org.ru/
+Откройте http://vmselect.apatsev.org.ru
+Откройте http://alertmanager.apatsev.org.ru
+Откройте http://vmalert.apatsev.org.ru
 Для получения пароля admin от Grafana необходимо:
 
 ```bash
