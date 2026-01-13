@@ -2,6 +2,11 @@ config:
   env:
     LOG_LEVEL: "DEBUG"
 impulseConfig:
+  incident:
+    notifications:
+      # Отключаем краткие уведомления о новых firing инцидентах
+      # чтобы получать полные сообщения об инцидентах
+      new_firing: false
   messenger:
     type: "telegram"
     # Required for Telegram: URL of Impulse instance for button callbacks (HTTPS only for Telegram)
@@ -16,37 +21,6 @@ impulseConfig:
 
   route:
     channel: "incidents_default"
-  
-  ui:
-    columns:
-      - name: status
-        header: Status
-        visible: false
-        value: incident.status
-      - name: created
-        type: datetime
-        header: Created
-        value: incident.created
-      - name: alertname
-        header: Alertname
-        type: link
-        url: incident.link
-        value: payload.commonLabels.alertname
-      - name: service
-        header: Service
-        value: payload.commonLabels.service
-      - name: severity
-        header: Severity
-        value: payload.commonLabels.severity
-    sorting:
-      - severity: desc
-        order: ["info", "warning", "critical"]
-      - created: desc
-    colors:
-      severity:
-        critical: "#FF0000"
-        warning: "#FFA500"
-        info: "#00FF00"
 
 secrets:
   existing:

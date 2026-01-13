@@ -1,5 +1,7 @@
 app
 chart
+cleanup-helm-releases.sh
+cluster-issuer.yaml
 .cursorignore
 .git
 .github
@@ -8,10 +10,11 @@ ip-dns.tf
 k8s.tf
 LICENSE
 net.tf
+README.md
 .terraform
 .terraform.lock.hcl
 terraform.tfstate
 terraform.tfstate.backup
+values-impulse.yaml
 versions.tf
-vmks-values-default.yaml
 vmks-values.yaml

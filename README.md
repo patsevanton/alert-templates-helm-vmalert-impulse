@@ -111,19 +111,6 @@ kubectl create secret generic impulse-telegram-secrets \
   --from-literal=bot-token='xxxxx:xxxxx-xxxxxxx'
 ```
 
-Содержимое `values-impulse.yaml`:
-
-```yaml
-```
-
-7. Настройте Impulse на прием webhook от Alertmanager
-8. Сконфигурируйте шаблоны сообщений с необходимыми полями:
-   - Severity (уровень серьезности)
-   - Текущее значение метрики
-   - Пороговое значение
-   - Ссылки на дашборды Grafana
-   - Команда ответственных
-
 ### Установка Impulse
 
 Для установки Impulse через Helm используйте следующие команды:
