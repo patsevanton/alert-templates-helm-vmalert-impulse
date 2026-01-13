@@ -8,7 +8,6 @@ ip-dns.tf
 k8s.tf
 LICENSE
 net.tf
-README.md
 .terraform
 .terraform.lock.hcl
 terraform.tfstate

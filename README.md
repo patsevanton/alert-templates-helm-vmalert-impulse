@@ -118,20 +118,11 @@ vmalert:
 kubectl get secret vmks-grafana -n vmks -o jsonpath='{.data.admin-password}' | base64 --decode; echo
 ```
 
-```bash
-# Предварительный просмотр сгенерированных манифестов
-helm template ./chart
-
-# Валидация синтаксиса
-helm lint ./chart
-```
-
 ### Установка через Helm
 
 Для установки приложения в Kubernetes-кластере используйте Helm:
 
 ```bash
-# Установка приложения через Helm
 helm upgrade --install golden-signal-app ./chart \
   --namespace golden-signal-app \
   --create-namespace \
