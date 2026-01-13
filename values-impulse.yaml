@@ -1,6 +1,8 @@
 impulseConfig:
   messenger:
     type: "telegram"
+    # Required for Telegram: URL of Impulse instance for button callbacks (HTTPS only for Telegram)
+    impulse_address: "https://impulse.apatsev.org.ru"
     admin_users: ["admin_user"]
     users:
       admin_user:
@@ -12,17 +14,7 @@ impulseConfig:
       default:
         - user: "admin_user"
           wait: "10m"
-  
-  incident:
-    notifications:
-      new_firing: true
-      partial_resolved: true
-      status_update: true
-    timeouts:
-      firing: "6h"
-      unknown: "6h"
-      resolved: "12h"
-  
+
   route:
     channel: "incidents_default"
   
@@ -58,18 +50,10 @@ impulseConfig:
         info: "#00FF00"
 
 secrets:
-  # Option 1: Use existing secrets (recommended for production)
-  # existing:
-  #   telegram:
-  #     secretName: "my-telegram-secrets"
-  #     botTokenKey: "bot-token"
-  
-  # Option 2: Inline secrets (for development/testing)
-  # Leave empty if using existing secrets above
-  inline:
+  existing:
     telegram:
-      botToken: "your-telegram-bot-token"
-
+      secretName: "impulse-telegram-secrets"
+      botTokenKey: "bot-token"
 ingress:
   enabled: true
   className: nginx
