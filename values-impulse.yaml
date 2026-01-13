@@ -70,11 +70,6 @@ secrets:
     telegram:
       botToken: "your-telegram-bot-token"
 
-
-persistence:
-  enabled: true
-  size: 1Gi
-
 ingress:
   enabled: true
   className: nginx

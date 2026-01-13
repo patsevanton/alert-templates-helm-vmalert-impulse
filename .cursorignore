@@ -13,6 +13,7 @@ README.md
 .terraform.lock.hcl
 terraform.tfstate
 terraform.tfstate.backup
+values-impulse-default.yaml
 values-impulse.yaml
 versions.tf
 vmks-values.yaml
