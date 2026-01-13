@@ -139,9 +139,9 @@ curl http://localhost:8080/work
 2. Получите токен бота
 3. Добавьте бота в чат или группу, куда будут приходить алерты (бот должен быть добавлен как участник)
 4. Получите `telegram_chat_id` — ID чата/группы, куда будут отправляться уведомления:
-   - Добавьте бота [@userinfobot](https://t.me/userinfobot) в ваш чат/группу
-   - Отправьте любое сообщение в чат/группу
-   - [@userinfobot](https://t.me/userinfobot) вернет информацию о чате, включая `chat.id` — это и есть `telegram_chat_id`
+   - Добавьте бота [@myidbot](https://t.me/myidbot) в ваш чат/группу
+   - Отправьте сообщение `/getgroupid@myidbot` в чат/группу
+   - [@myidbot](https://t.me/myidbot) вернет информацию о чате `Your group ID is: -xxxxx` — это и есть `telegram_chat_id`
    - Укажите полученный ID в `values-impulse.yaml` в секции `channels.incidents_default.id`
 5. Получите `telegram_user_id` для администратора:
    - Напишите боту [@userinfobot](https://t.me/userinfobot) в личные сообщения
