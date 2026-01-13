@@ -108,12 +108,16 @@ vmalert:
 ```
 
 Можно анализировать логи через explore Grafana.
-Откройте http://grafana.apatsev.org.ru/
-Откройте http://vmselect.apatsev.org.ru/select/0/vmui
-Откройте http://alertmanager.apatsev.org.ru
-Откройте http://vmalert.apatsev.org.ru
-Для получения пароля admin от Grafana необходимо:
 
+Откройте http://grafana.apatsev.org.ru/
+
+Откройте http://vmselect.apatsev.org.ru/select/0/vmui
+
+Откройте http://alertmanager.apatsev.org.ru
+
+Откройте http://vmalert.apatsev.org.ru
+
+Для получения пароля admin от Grafana необходимо:
 ```bash
 kubectl get secret vmks-grafana -n vmks -o jsonpath='{.data.admin-password}' | base64 --decode; echo
 ```
@@ -148,7 +152,18 @@ curl http://localhost:8080/work
 
 1. Создайте бота через [@BotFather](https://t.me/BotFather)
 2. Получите токен бота
-3. Создайте Kubernetes Secret с токеном бота:
+3. Добавьте бота в чат или группу, куда будут приходить алерты (бот должен быть добавлен как участник)
+4. Получите `telegram_chat_id` — ID чата/группы, куда будут отправляться уведомления:
+   - Добавьте бота [@userinfobot](https://t.me/userinfobot) в ваш чат/группу
+   - Отправьте любое сообщение в чат/группу
+   - [@userinfobot](https://t.me/userinfobot) вернет информацию о чате, включая `chat.id` — это и есть `telegram_chat_id`
+   - Укажите полученный ID в `values-impulse.yaml` в секции `channels.incidents_default.id`
+5. Получите `telegram_user_id` для администратора:
+   - Напишите боту [@userinfobot](https://t.me/userinfobot) в личные сообщения
+   - Бот вернет ваш `id` — это и есть `telegram_user_id`
+   - Укажите полученный ID в `values-impulse.yaml` в секции `users.admin_user.id`
+   - `admin_user` используется для управления инцидентами через цепочки эскалации (chains) и получения уведомлений о статусе обработки алертов
+6. Создайте Kubernetes Secret с токеном бота:
 
 ```bash
 kubectl create namespace impulse
@@ -169,8 +184,8 @@ secrets:
 
 И закомментируйте секцию `secrets.inline.telegram.botToken`.
 
-4. Настройте Impulse на прием webhook от Alertmanager
-4. Сконфигурируйте шаблоны сообщений с необходимыми полями:
+7. Настройте Impulse на прием webhook от Alertmanager
+8. Сконфигурируйте шаблоны сообщений с необходимыми полями:
    - Severity (уровень серьезности)
    - Текущее значение метрики
    - Пороговое значение
