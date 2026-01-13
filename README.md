@@ -1,5 +1,7 @@
 # Шаблонизация правил алертов в Helm и их обработка через vmalert и Impulse для отправки в Telegram
 
+HTTPS требуется как минимум для Telegram-интеграции в Impulse, поскольку Telegram Bot API принимает webhooks и callback-адреса только по HTTPS для обеспечения безопасности.
+
 ### 1. cert-manager
 
 Установите cert-manager для автоматизации TLS:
