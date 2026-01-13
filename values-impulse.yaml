@@ -10,10 +10,6 @@ impulseConfig:
     channels:
       incidents_default:
         id: "telegram_chat_id"
-    chains:
-      default:
-        - user: "admin_user"
-          wait: "10m"
 
   route:
     channel: "incidents_default"
@@ -57,8 +53,16 @@ secrets:
 ingress:
   enabled: true
   className: nginx
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    kubernetes.io/tls-acme: "true"
   hosts:
     - host: impulse.apatsev.org.ru
       paths:
         - path: /
           pathType: ImplementationSpecific
+  tls:
+    - secretName: impulse-tls
+      hosts:
+        - impulse.apatsev.org.ru

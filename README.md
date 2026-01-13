@@ -144,7 +144,7 @@ curl http://localhost:8080/work
    - [@myidbot](https://t.me/myidbot) вернет информацию о чате `Your group ID is: -xxxxx` — это и есть `telegram_chat_id`
    - Укажите полученный ID в `values-impulse.yaml` в секции `channels.incidents_default.id`
 5. Получите `telegram_user_id` для администратора:
-   - Напишите боту [@userinfobot](https://t.me/userinfobot) в личные сообщения
+   - Напишите боту [@userinfobot](https://t.me/userinfobot) в личные сообщения команду `/start`
    - Бот вернет ваш `id` — это и есть `telegram_user_id`
    - Укажите полученный ID в `values-impulse.yaml` в секции `users.admin_user.id`
    - `admin_user` используется для управления инцидентами через цепочки эскалации (chains) и получения уведомлений о статусе обработки алертов
@@ -157,17 +157,10 @@ kubectl create secret generic impulse-telegram-secrets \
   --from-literal=bot-token='xxxxx:xxxxx-xxxxxxx'
 ```
 
-Затем в `values-impulse.yaml` раскомментируйте и настройте:
+Содержимое `values-impulse.yaml`:
 
 ```yaml
-secrets:
-  existing:
-    telegram:
-      secretName: "impulse-telegram-secrets"
-      botTokenKey: "bot-token"
 ```
-
-И закомментируйте секцию `secrets.inline.telegram.botToken`.
 
 7. Настройте Impulse на прием webhook от Alertmanager
 8. Сконфигурируйте шаблоны сообщений с необходимыми полями:
@@ -200,6 +193,8 @@ helm upgrade --install impulse impulse/impulse \
 Откройте http://alertmanager.apatsev.org.ru
 
 Откройте http://vmalert.apatsev.org.ru
+
+Откройте https://impulse.apatsev.org.ru
 
 Для получения пароля admin от Grafana необходимо:
 ```bash
