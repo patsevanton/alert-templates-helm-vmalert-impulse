@@ -107,7 +107,7 @@ vmalert:
   enabled: true
   ingress:
     enabled: true
-    ingressClassName: istio
+    ingressClassName: nginx
     hosts:
       - vmalert.apatsev.org.ru
     annotations:
