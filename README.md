@@ -94,6 +94,26 @@ vmcluster:
         nginx.ingress.kubernetes.io/ssl-redirect: "false"
       hosts:
         - vmselect.apatsev.org.ru
+alertmanager:
+  enabled: true
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - alertmanager.apatsev.org.ru
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+vmalert:
+  enabled: true
+  ingress:
+    enabled: true
+    ingressClassName: istio
+    hosts:
+      - vmalert.apatsev.org.ru
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    path: "/"
+    pathType: Prefix
 ```
 
 Можно анализировать логи через explore Grafana.
@@ -123,11 +143,15 @@ helm upgrade --install golden-signal-app ./chart \
   --create-namespace \
   --set image.repository=ghcr.io/patsevanton/alert-templates-helm-vmalert-impulse \
   --set image.tag=1.3.0
+```
 
 # Проверка статуса развертывания
+```
 kubectl get pods -n monitoring -l app=golden-signal-app
+```
 
 # Проверка метрик
+```
 kubectl port-forward -n monitoring svc/golden-signal-app 8080:8080
 curl http://localhost:8080/metrics
 curl http://localhost:8080/work
