@@ -37,9 +37,27 @@ resource "yandex_dns_recordset" "impulse" {
 }
 
 # Создание DNS-записи типа A, указывающей на внешний IP
-resource "yandex_dns_recordset" "victoriametrics" {
+resource "yandex_dns_recordset" "vmselect" {
   zone_id = yandex_dns_zone.apatsev-org-ru.id                          # ID зоны, к которой принадлежит запись
   name    = "vmselect.apatsev.org.ru."                          # Полное имя записи (поддомен)
+  type    = "A"                                                        # Тип записи — A (IPv4-адрес)
+  ttl     = 200                                                        # Время жизни записи в секундах
+  data    = [yandex_vpc_address.addr.external_ipv4_address[0].address] # Значение — внешний IP-адрес, полученный ранее
+}
+
+# Создание DNS-записи типа A, указывающей на внешний IP
+resource "yandex_dns_recordset" "alertmanager" {
+  zone_id = yandex_dns_zone.apatsev-org-ru.id                          # ID зоны, к которой принадлежит запись
+  name    = "alertmanager.apatsev.org.ru."                             # Полное имя записи (поддомен)
+  type    = "A"                                                        # Тип записи — A (IPv4-адрес)
+  ttl     = 200                                                        # Время жизни записи в секундах
+  data    = [yandex_vpc_address.addr.external_ipv4_address[0].address] # Значение — внешний IP-адрес, полученный ранее
+}
+
+# Создание DNS-записи типа A, указывающей на внешний IP
+resource "yandex_dns_recordset" "vmalert" {
+  zone_id = yandex_dns_zone.apatsev-org-ru.id                          # ID зоны, к которой принадлежит запись
+  name    = "vmalert.apatsev.org.ru."                                  # Полное имя записи (поддомен)
   type    = "A"                                                        # Тип записи — A (IPv4-адрес)
   ttl     = 200                                                        # Время жизни записи в секундах
   data    = [yandex_vpc_address.addr.external_ipv4_address[0].address] # Значение — внешний IP-адрес, полученный ранее
