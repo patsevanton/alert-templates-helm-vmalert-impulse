@@ -142,7 +142,7 @@ helm lint ./chart
 ```bash
 # Установка приложения через Helm
 helm upgrade --install golden-signal-app ./chart \
-  --namespace monitoring \
+  --namespace golden-signal-app \
   --create-namespace \
   --set image.repository=ghcr.io/patsevanton/alert-templates-helm-vmalert-impulse \
   --set image.tag=1.3.0
@@ -150,7 +150,7 @@ helm upgrade --install golden-signal-app ./chart \
 
 # Проверка статуса развертывания
 ```
-kubectl get pods -n monitoring -l app=golden-signal-app
+kubectl get pods -n golden-signal-app -l app=golden-signal-app
 ```
 
 # Проверка метрик
@@ -248,7 +248,7 @@ helm repo add impulse https://eslupmi.github.io/helm-charts/packages
 helm repo update
 helm upgrade --install impulse impulse/impulse \
   --version 1.0.6 \
-  --namespace monitoring \
+  --namespace impulse \
   --create-namespace \
   -f values-impulse.yaml
 ```
@@ -278,7 +278,6 @@ Impulse позволяет создавать структурированные
 *Текущее значение:* 0.08
 *Порог:* 0.05
 *Сервис:* golden-signal-app
-*Namespace:* production
 
 [Открыть в Grafana](https://grafana.example.com/...)
 ```
