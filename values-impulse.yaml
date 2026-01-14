@@ -4,8 +4,6 @@ config:
 impulseConfig:
   incident:
     notifications:
-      # Отключаем краткие уведомления о новых firing инцидентах
-      # чтобы получать полные сообщения об инцидентах
       new_firing: false
   messenger:
     type: "telegram"
