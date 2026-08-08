@@ -105,6 +105,7 @@ kubectl create secret generic impulse-telegram-secrets \
 
 Для установки Impulse через Helm используйте следующие команды:
 
+Надо заменить
 ```bash
 helm repo add impulse https://eslupmi.github.io/helm-charts/packages
 helm repo update
@@ -113,6 +114,12 @@ helm upgrade --install impulse impulse/impulse \
   --namespace impulse \
   --create-namespace \
   -f values/values-impulse.yaml
+```
+
+На команды
+```
+helm repo add impulse https://eslupmi-community.github.io/helm-charts
+helm install my-impulse impulse/impulse --version 1.0.14
 ```
 
 Шаблон values: [`values/values-impulse.yaml.tftpl`](values/values-impulse.yaml.tftpl) (рендерится в `values/values-impulse.yaml`).
