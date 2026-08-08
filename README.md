@@ -1,51 +1,39 @@
 # Шаблонизация правил алертов в Helm и их обработка через vmalert и Impulse для отправки в Telegram
 
-HTTPS требуется как минимум для Telegram-интеграции в Impulse, поскольку Telegram Bot API принимает webhooks и callback-адреса только по HTTPS для обеспечения безопасности.
+Публичные имена сервисов формируются через **sslip.io** по схеме `<сервис>.<LB_IP>.sslip.io` — это бесплатный wildcard-DNS: `<anything>.<IP>.sslip.io` всегда резолвится в `<IP>`. Собственная DNS-зона не нужна. IP балансировщика ingress-nginx известен только после `terraform apply`, поэтому values-файлы рендерятся Terraform из шаблонов `values/*.tftpl` (через `local_file` в `k8s.tf`) с подстановкой реального IP.
 
-### 1. cert-manager
+## Порядок развёртывания
 
-Установите cert-manager для автоматизации TLS:
-
-```bash
-helm upgrade --install \
-  cert-manager oci://quay.io/jetstack/charts/cert-manager \
-  --version v1.19.2 \
-  --namespace cert-manager \
-  --create-namespace \
-  --set crds.enabled=true \
-  --wait \
-  --timeout 15m
-```
-
-После установки подключите ClusterIssuer (пример файла — [`cluster-issuer.yaml`](cluster-issuer.yaml:1)).
+### 1. Terraform: инфраструктура и рендер values
 
 ```bash
-kubectl apply -f cluster-issuer.yaml
+terraform init
+terraform apply
 ```
 
-Содержимое cluster-issuer.yaml:
-```yaml
-apiVersion: cert-manager.io/v1
-kind: ClusterIssuer
-metadata:
-  name: letsencrypt-prod
-spec:
-  acme:
-    server: https://acme-v02.api.letsencrypt.org/directory
-    email: my-email@mycompany.com
-    privateKeySecretRef:
-      name: letsencrypt-prod
-    solvers:
-    - http01:
-        ingress:
-          class: nginx
+После `apply` в `values/` появятся отрендеренные `vmks-values.yaml` и `values-impulse.yaml` с актуальными sslip.io-хостами. URL сервисов и IP балансировщика выводятся в `terraform output`:
+
+```bash
+terraform output lb_ip
+terraform output grafana_url
+terraform output vmselect_url
+terraform output alertmanager_url
+terraform output vmalert_url
+terraform output impulse_url
+terraform output grafana_admin_user
+terraform output grafana_admin_password_command
 ```
 
-> Если вы не используете Let's Encrypt, замените настройки ClusterIssuer на внутренний CA или нужный вам провайдер.
+Доступ к кластеру:
 
-### VM K8s Stack (метрики, Grafana)
+```bash
+$(terraform output -raw k8s_cluster_credentials_command)
+kubectl get nodes
+```
 
-Пример установки victoria-metrics-k8s-stack c Grafana:
+### 2. VM K8s Stack (метрики, Grafana)
+
+Установка victoria-metrics-k8s-stack с Grafana. Values-файл уже сгенерирован Terraform с актуальным sslip.io-хостом:
 
 ```bash
 helm upgrade --install vmks \
@@ -55,37 +43,38 @@ helm upgrade --install vmks \
   --wait \
   --version 0.67.0 \
   --timeout 15m \
-  -f vmks-values.yaml
+  -f values/vmks-values.yaml
 ```
 
-Содержимое vmks-values.yaml:
+Шаблон values: [`values/vmks-values.yaml.tftpl`](values/vmks-values.yaml.tftpl) (рендерится в `values/vmks-values.yaml`).
 
+### 3. Установка приложения через Helm
 
-### Установка через Helm
-
-Для установки приложения в Kubernetes-кластере используйте Helm:
+Для установки demo-приложения Golden Signal в Kubernetes-кластере используйте Helm:
 
 ```bash
 helm upgrade --install golden-signal-app ./chart \
   --namespace golden-signal-app \
-  --create-namespace \
-  --set image.repository=ghcr.io/patsevanton/alert-templates-helm-vmalert-impulse \
-  --set image.tag=1.3.0
+  --create-namespace
 ```
 
-# Проверка статуса развертывания
-```
+> `image.repository` и `image.tag` уже заданы в [`chart/values.yaml`](chart/values.yaml) по умолчанию, `--set` не требуется.
+
+### Проверка статуса развертывания
+
+```bash
 kubectl get pods -n golden-signal-app -l app=golden-signal-app
 ```
 
-# Проверка метрик
-```
+### Проверка метрик
+
+```bash
 kubectl port-forward -n golden-signal-app svc/golden-signal-app 8080:8080
 curl http://localhost:8080/metrics
 curl http://localhost:8080/work
 ```
 
-### Настройка Telegram-бота
+### 4. Настройка Telegram-бота
 
 Для отправки уведомлений в Telegram:
 
@@ -95,13 +84,12 @@ curl http://localhost:8080/work
 4. Получите `telegram_chat_id` — ID чата/группы, куда будут отправляться уведомления:
    - Добавьте бота [@myidbot](https://t.me/myidbot) в ваш чат/группу
    - Отправьте сообщение `/getgroupid@myidbot` в чат/группу
-   - [@myidbot](https://t.me/myidbot) вернет информацию о чате `Your group ID is: -xxxxx` — это и есть `telegram_chat_id`
-   - Укажите полученный ID в `values-impulse.yaml` в секции `channels.incidents_default.id`
+   - Бот вернёт информацию о чате `Your group ID is: -xxxxx` — это и есть `telegram_chat_id`
+   - Укажите полученный ID в `values/values-impulse.yaml.tftpl` в секции `channels.incidents_default.id`
 5. Получите `telegram_user_id` для администратора:
    - Напишите боту [@userinfobot](https://t.me/userinfobot) в личные сообщения команду `/start`
-   - Бот вернет ваш `id` — это и есть `telegram_user_id`
-   - Укажите полученный ID в `values-impulse.yaml` в секции `users.admin_user.id`
-   - `admin_user` используется для управления инцидентами через цепочки эскалации (chains) и получения уведомлений о статусе обработки алертов
+   - Бот вернёт ваш `id` — это и есть `telegram_user_id`
+   - Укажите полученный ID в `values/values-impulse.yaml.tftpl` в секции `users.admin_user.id`
 6. Создайте Kubernetes Secret с токеном бота:
 
 ```bash
@@ -111,7 +99,9 @@ kubectl create secret generic impulse-telegram-secrets \
   --from-literal=bot-token='xxxxx:xxxxx-xxxxxxx'
 ```
 
-### Установка Impulse
+> После редактирования `values/values-impulse.yaml.tftpl` выполните `terraform apply` для перегенерации `values/values-impulse.yaml`.
+
+### 5. Установка Impulse
 
 Для установки Impulse через Helm используйте следующие команды:
 
@@ -122,22 +112,39 @@ helm upgrade --install impulse impulse/impulse \
   --version 1.0.6 \
   --namespace impulse \
   --create-namespace \
-  -f values-impulse.yaml
+  -f values/values-impulse.yaml
 ```
 
-Можно анализировать алерты через ссылки ниже.
+Шаблон values: [`values/values-impulse.yaml.tftpl`](values/values-impulse.yaml.tftpl) (рендерится в `values/values-impulse.yaml`).
 
-Откройте http://grafana.apatsev.org.ru/
+## Доступ к сервисам
 
-Откройте http://vmselect.apatsev.org.ru/select/0/vmui
+URL формируются через sslip.io из публичного IP балансировщика ingress-nginx (IP берётся из `terraform output lb_ip`):
 
-Откройте http://alertmanager.apatsev.org.ru
+- **Grafana**: `http://grafana.<LB_IP>.sslip.io`
+- **VictoriaMetrics**: `http://vmselect.<LB_IP>.sslip.io`
+- **Alertmanager**: `http://alertmanager.<LB_IP>.sslip.io`
+- **vmalert**: `http://vmalert.<LB_IP>.sslip.io`
+- **Impulse**: `http://impulse.<LB_IP>.sslip.io`
 
-Откройте http://vmalert.apatsev.org.ru
+Для получения пароля admin от Grafana:
 
-Откройте https://impulse.apatsev.org.ru
-
-Для получения пароля admin от Grafana необходимо:
 ```bash
-kubectl get secret vmks-grafana -n vmks -o jsonpath='{.data.admin-password}' | base64 --decode; echo
+terraform output -raw grafana_admin_password_command | sh
 ```
+
+> sslip.io — бесплатный wildcard-DNS: `<anything>.<IP>.sslip.io` всегда резолвится в `<IP>`. Не требует делегирования доменной зоны.
+
+## Структура файлов
+
+| Файл | Описание |
+|------|----------|
+| [`versions.tf`](versions.tf) | Провайдеры Terraform (Yandex Cloud, Helm, Kubernetes, time) |
+| [`net.tf`](net.tf) | VPC-сеть, подсети, NAT-шлюз + route table для исходящего трафика из приватных подсетей |
+| [`ip-dns.tf`](ip-dns.tf) | Статический IP балансировщика (публичные имена через sslip.io, собственная DNS-зона не нужна) |
+| [`k8s.tf`](k8s.tf) | K8s-кластер, ноды, Helm-релиз ingress-nginx, рендер values из `.tftpl`, `terraform output` URL |
+| [`values/vmks-values.yaml.tftpl`](values/vmks-values.yaml.tftpl) | Шаблон values victoria-metrics-k8s-stack (рендерится в `values/vmks-values.yaml`) |
+| [`values/values-impulse.yaml.tftpl`](values/values-impulse.yaml.tftpl) | Шаблон values Impulse (рендерится в `values/values-impulse.yaml`) |
+| [`chart/`](chart) | Helm-чарт demo-приложения Golden Signal (Deployment, Service, ServiceMonitor, VMRule) |
+| [`app/`](app) | Исходники demo-приложения (Go): генератор трафика + метрики Golden Signals (latency, errors, saturation) |
+| [`values-telegram_impulse.yaml`](values-telegram_impulse.yaml) | Пример альтернативной конфигурации Impulse с chains, UI-колонками, persistence |

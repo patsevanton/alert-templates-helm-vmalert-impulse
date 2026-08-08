@@ -133,7 +133,74 @@ resource "helm_release" "ingress_nginx" {
   ]
 }
 
+locals {
+  lb_ip = yandex_vpc_address.addr.external_ipv4_address[0].address
+
+  vmks_values = templatefile("${path.module}/values/vmks-values.yaml.tftpl", {
+    lb_ip = local.lb_ip
+  })
+
+  impulse_values = templatefile("${path.module}/values/values-impulse.yaml.tftpl", {
+    lb_ip = local.lb_ip
+  })
+}
+
+# Рендер values-файлов из шаблонов с актуальным IP балансировщика (sslip.io-хосты)
+resource "local_file" "vmks_values" {
+  content         = local.vmks_values
+  filename        = "${path.module}/values/vmks-values.yaml"
+  file_permission = "0644"
+}
+
+resource "local_file" "impulse_values" {
+  content         = local.impulse_values
+  filename        = "${path.module}/values/values-impulse.yaml"
+  file_permission = "0644"
+}
+
 # Вывод команды для получения kubeconfig
 output "k8s_cluster_credentials_command" {
   value = "yc managed-kubernetes cluster get-credentials --id ${yandex_kubernetes_cluster.impulse.id} --external --force"
+}
+
+# URL сервисов формируются через sslip.io из публичного IP балансировщика ingress-nginx:
+# <anything>.<IP>.sslip.io всегда резолвится в <IP>. Публичный DNS не требуется.
+output "lb_ip" {
+  description = "Публичный IP балансировщика ingress-nginx (используется для sslip.io-хостов)"
+  value       = local.lb_ip
+}
+
+output "grafana_url" {
+  description = "URL Grafana (сформирован через sslip.io из публичного IP балансировщика)"
+  value       = "http://grafana.${local.lb_ip}.sslip.io"
+}
+
+output "vmselect_url" {
+  description = "URL VictoriaMetrics vmselect (сформирован через sslip.io)"
+  value       = "http://vmselect.${local.lb_ip}.sslip.io"
+}
+
+output "alertmanager_url" {
+  description = "URL Alertmanager (сформирован через sslip.io)"
+  value       = "http://alertmanager.${local.lb_ip}.sslip.io"
+}
+
+output "vmalert_url" {
+  description = "URL vmalert (сформирован через sslip.io)"
+  value       = "http://vmalert.${local.lb_ip}.sslip.io"
+}
+
+output "impulse_url" {
+  description = "URL Impulse (сформирован через sslip.io; HTTP — TLS пока выключен, см. AGENTS.md)"
+  value       = "http://impulse.${local.lb_ip}.sslip.io"
+}
+
+output "grafana_admin_user" {
+  description = "Логин администратора Grafana (дефолт чарта victoria-metrics-k8s-stack)"
+  value       = "admin"
+}
+
+output "grafana_admin_password_command" {
+  description = "Команда для получения пароля администратора Grafana из Secret (пароль автогенерируется helm-чартом vmks при установке)"
+  value       = "kubectl get secret vmks-grafana -n vmks -o jsonpath='{.data.admin-password}' | base64 -d && echo"
 }

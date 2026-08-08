@@ -3,7 +3,7 @@ grafana:
     ingressClassName: nginx
     enabled: true
     hosts:
-      - grafana.apatsev.org.ru
+      - grafana.${lb_ip}.sslip.io
     annotations:
       nginx.ingress.kubernetes.io/ssl-redirect: "false"
 defaultRules:
@@ -24,7 +24,7 @@ vmcluster:
       annotations:
         nginx.ingress.kubernetes.io/ssl-redirect: "false"
       hosts:
-        - vmselect.apatsev.org.ru
+        - vmselect.${lb_ip}.sslip.io
 alertmanager:
   enabled: true
   spec:
@@ -49,7 +49,7 @@ alertmanager:
     enabled: true
     ingressClassName: nginx
     hosts:
-      - alertmanager.apatsev.org.ru
+      - alertmanager.${lb_ip}.sslip.io
     annotations:
       nginx.ingress.kubernetes.io/ssl-redirect: "false"
 vmalert:
@@ -58,7 +58,7 @@ vmalert:
     enabled: true
     ingressClassName: nginx
     hosts:
-      - vmalert.apatsev.org.ru
+      - vmalert.${lb_ip}.sslip.io
     annotations:
       nginx.ingress.kubernetes.io/ssl-redirect: "false"
     path: "/"
