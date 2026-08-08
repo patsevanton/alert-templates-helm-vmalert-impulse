@@ -71,7 +71,7 @@ resource "yandex_kubernetes_node_group" "k8s-node-group" {
     platform_id = "standard-v2" # Тип виртуальной машины
 
     network_interface {
-      nat = true # Включение NAT для доступа в интернет
+      nat = false # Публичный IP выключен, исходящий трафик через NAT-шлюз
       subnet_ids = [
         yandex_vpc_subnet.impulse-a.id,
         yandex_vpc_subnet.impulse-b.id,
