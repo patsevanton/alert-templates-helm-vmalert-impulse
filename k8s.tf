@@ -80,13 +80,13 @@ resource "yandex_kubernetes_node_group" "k8s-node-group" {
     }
 
     resources {
-      memory = 20 # ОЗУ
-      cores  = 4  # Кол-во ядер CPU
+      memory = 4  # ОЗУ
+      cores  = 2  # Кол-во ядер CPU
     }
 
     boot_disk {
       type = "network-ssd" # Тип диска
-      size = 128           # Размер диска
+      size = 30           # Размер диска
     }
   }
 }
