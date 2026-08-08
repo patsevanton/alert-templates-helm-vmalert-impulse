@@ -118,6 +118,7 @@ resource "helm_release" "ingress_nginx" {
 
   depends_on = [
     yandex_kubernetes_cluster.impulse,
+    yandex_kubernetes_node_group.k8s-node-group,
     time_sleep.wait_lb_release,
   ]
 
