@@ -28,7 +28,7 @@ resource "yandex_kubernetes_cluster" "impulse" {
   network_id = yandex_vpc_network.impulse.id # Сеть, к которой подключается кластер
 
   master {
-    version = "1.32" # Версия Kubernetes мастера
+    version = "1.33" # Версия Kubernetes мастера
     zonal {
       zone      = yandex_vpc_subnet.impulse-a.zone # Зона размещения мастера
       subnet_id = yandex_vpc_subnet.impulse-a.id   # Подсеть для мастера
@@ -57,7 +57,7 @@ resource "yandex_kubernetes_node_group" "k8s-node-group" {
   description = "Node group for the Managed Service for Kubernetes cluster"
   name        = "k8s-node-group"
   cluster_id  = yandex_kubernetes_cluster.impulse.id
-  version     = "1.32" # Версия Kubernetes на нодах
+  version     = "1.33" # Версия Kubernetes на нодах
 
   scale_policy {
     fixed_scale {

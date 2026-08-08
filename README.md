@@ -41,7 +41,7 @@ helm upgrade --install vmks \
   --namespace vmks \
   --create-namespace \
   --wait \
-  --version 0.67.0 \
+  --version 0.90.1 \
   --timeout 15m \
   -f values/vmks-values.yaml
 ```

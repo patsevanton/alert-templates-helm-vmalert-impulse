@@ -54,6 +54,31 @@ IP балансировщика известен только после `terraf
 - [ ] Если решено конвертировать в `.tftpl` — добавить `ingress` с `impulse.${lb_ip}.sslip.io` (сейчас ingress отсутствует, Impulse не будет доступен снаружи).
 - [ ] `chains.default` ссылается на `admin_user` — убедиться, что этот ключ совпадает с `admin_users` и `users.admin_user.id` из рабочего шаблона.
 
+## Helm-чарт Impulse (уточнить источник)
+
+Impulse устанавливается через Helm вручную (шаг 5 в README), не через `helm_release` в Terraform. Команда установки описана в двух местах:
+
+| Файл | Назначение | Команда |
+|---|---|---|
+| `README.md` (шаг 5) | Рабочая инструкция для пользователя | `helm upgrade --install impulse impulse/impulse --version 1.0.6 -f values/values-impulse.yaml` |
+| `test_install_impulse.md` | Черновик команд (справочно) | то же, но `-f values-impulse.yaml` (без каталога `values/`) — путь устарел |
+
+**Проблема: репозиторий чарта недоступен.** URL `https://eslupmi.github.io/helm-charts/packages` возвращает `404 Not Found` — `helm repo add` завершается ошибкой, получить список версий и установить чарт нельзя. Актуальный источник чарта Impulse неизвестен.
+
+**Параметры установки (зафиксированы в README, проверить после уточнения источника):**
+- репо: `https://eslupmi.github.io/helm-charts/packages` (нужен рабочий URL)
+- чарт: `impulse/impulse`
+- версия: `1.0.6` (актуальность проверить невозможно — репо недоступен)
+- values: `values/values-impulse.yaml` (рендерится Terraform из `values/values-impulse.yaml.tftpl`)
+- namespace: `impulse` (создаётся `--create-namespace`)
+
+**Открытые вопросы по helm-чарту Impulse** (требуют решения владельцем репозитория):
+- [ ] Указать актуальный URL helm-репозитория Impulse (текущий `https://eslupmi.github.io/helm-charts/packages` — 404). Возможные варианты: GitHub Pages под другим путём, OCI-репозиторий (`oci://ghcr.io/...`), локальный tarball.
+- [ ] Уточнить актуальную версию чарта (сейчас `1.0.6` — проверить нельзя, пока репо недоступен).
+- [ ] После уточнения источника — обновить команду в `README.md` (шаг 5) и `test_install_impulse.md` (или удалить `test_install_impulse.md` как дубликат).
+- [ ] В `test_install_impulse.md` исправить путь к values: `-f values-impulse.yaml` → `-f values/values-impulse.yaml` (рабочий файл лежит в `values/`).
+- [ ] Рассмотреть вынос установки Impulse в `helm_release` в `k8s.tf` (по аналогии с `ingress_nginx`) — но только после того, как источник чарта станет стабильным.
+
 ## Пароль Grafana (обработка как в соседнем проекте)
 
 Пароль администратора Grafana автогенерируется helm-чартом `victoria-metrics-k8s-stack` в Secret `vmks-grafana` (namespace `vmks`, ключ `admin-password`). В Terraform сам пароль **не хранится** — выводится только команда для его извлечения, по образцу соседнего проекта `nginx-vts-vs-angie` (`k8s.tf`: `output grafana_admin_password_command`).
