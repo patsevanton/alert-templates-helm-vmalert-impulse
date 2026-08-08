@@ -43,8 +43,13 @@ resource "yandex_kubernetes_cluster" "impulse" {
 
   release_channel = "STABLE" # Канал обновлений
 
-  # Зависимость от ожидания применения IAM-ролей
-  depends_on = [time_sleep.wait_sa]
+  # Зависимость от ожидания применения IAM-ролей.
+  # При destroy кластер должен удалиться ДО time_sleep.wait_lb_release (пауза перед освобождением IP),
+  # чтобы cloud-controller-manager успел снять LoadBalancer с адреса yandex_vpc_address.addr.
+  depends_on = [
+    time_sleep.wait_sa,
+    time_sleep.wait_lb_release,
+  ]
 }
 
 # Группа узлов для Kubernetes-кластера
@@ -80,13 +85,13 @@ resource "yandex_kubernetes_node_group" "k8s-node-group" {
     }
 
     resources {
-      memory = 4  # ОЗУ
-      cores  = 2  # Кол-во ядер CPU
+      memory = 4 # ОЗУ
+      cores  = 2 # Кол-во ядер CPU
     }
 
     boot_disk {
       type = "network-ssd" # Тип диска
-      size = 30           # Размер диска
+      size = 30            # Размер диска
     }
   }
 }
@@ -112,7 +117,8 @@ resource "helm_release" "ingress_nginx" {
   create_namespace = true
 
   depends_on = [
-    yandex_kubernetes_cluster.impulse
+    yandex_kubernetes_cluster.impulse,
+    time_sleep.wait_lb_release,
   ]
 
   values = [
@@ -123,7 +129,7 @@ resource "helm_release" "ingress_nginx" {
         }
         config = {
           log-format-escape-json = "true"
-          log-format-upstream    = trimspace(<<-EOT
+          log-format-upstream = trimspace(<<-EOT
             {"ts":"$time_iso8601","http":{"request_id":"$req_id","method":"$request_method","status_code":$status,"url":"$host$request_uri","host":"$host","uri":"$request_uri","request_time":$request_time,"user_agent":"$http_user_agent","protocol":"$server_protocol","trace_session_id":"$http_trace_session_id","server_protocol":"$server_protocol","content_type":"$sent_http_content_type","bytes_sent":"$bytes_sent"},"nginx":{"x-forward-for":"$proxy_add_x_forwarded_for","remote_addr":"$proxy_protocol_addr","http_referrer":"$http_referer"}}
           EOT
           )
