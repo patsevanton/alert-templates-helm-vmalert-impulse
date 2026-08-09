@@ -13,8 +13,9 @@ Operational notes for working with this repo's infrastructure (Yandex Cloud + K8
 | `versions.tf` | Провайдеры Terraform: `yandex`, `helm`, `time`, `local`, `null`. Переменные `acme_email`, `telegram_chat_id`, `telegram_user_id`, `bot_token` |
 | `net.tf` | VPC-сеть `impulse`, 3 подсети (a/b/d), NAT-шлюз + route table для исходящего трафика из приватных подсетей (ноды без публичных IP) |
 | `ip-dns.tf` | Ресурс `yandex_vpc_address.addr` — статический публичный IP балансировщика ingress-nginx. DNS-зона не создаётся: имена формируются через sslip.io |
-| `k8s.tf` | K8s-кластер + node group (3 ноды, `nat=false`), `helm_release` ingress-nginx, `null_resource` для Secret `impulse-telegram-secrets` (из `var.bot_token`), `locals` + `local_file` для рендера values из `.tftpl`, `output` для URL сервисов |
+| `k8s.tf` | K8s-кластер + node group (3 ноды, `nat=false`), `helm_release` ingress-nginx, `locals` + `local_file` для рендера values из `.tftpl` и манифеста Secret `impulse-telegram-secrets`, `output` для URL сервисов |
 | `cluster-issuer.yaml` | ClusterIssuer Let's Encrypt для cert-manager. **Сейчас не применяется** (TLS выключен) — см. секцию «TLS / cert-manager» |
+| `impulse-telegram-secret.yaml.tftpl` | Шаблон манифеста Secret `impulse-telegram-secrets` (Namespace + Secret с `bot-token` в base64). Рендерится Terraform в `impulse-telegram-secret.yaml` (в `.gitignore`), применяется пользователем вручную `kubectl apply -f` |
 | `values/vmks-values.yaml.tftpl` | Шаблон values victoria-metrics-k8s-stack (Grafana, vmcluster, alertmanager, vmalert). Рендерится Terraform в `values/vmks-values.yaml` (в `.gitignore`) |
 | `values/values-impulse.yaml.tftpl` | Шаблон values Impulse (Telegram, ingress). Рендерится в `values/values-impulse.yaml` (в `.gitignore`) |
 | `chart/` | Helm-чарт demo-приложения Golden Signal: `Chart.yaml`, `values.yaml`, `templates/` (`_helpers.tpl`, `deployment.yaml`, `service.yaml`, `servicemonitor.yaml`, `vmrule.yaml`) |

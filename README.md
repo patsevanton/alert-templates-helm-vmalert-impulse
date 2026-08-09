@@ -139,13 +139,21 @@ bot_token        = "<ваш bot-token вида 123456789:ABCdefGhI-jklMnoPQRstuV
 EOF
 ```
 
-2. Перегенерируйте values и создайте Secret с токеном бота:
+2. Перегенерируйте values и манифест Secret с токеном бота:
 
 ```bash
 terraform apply
 ```
 
-> Secret `impulse-telegram-secrets` в namespace `impulse` создаётся автоматически Terraform (ресурс `null_resource.impulse_telegram_secret` в `k8s.tf`) из переменной `bot_token`. Ручной `kubectl create secret` больше не требуется. При смене `bot_token` в `terraform.tfvars` повторный `terraform apply` пересоздаст Secret автоматически.
+> `terraform apply` рендерит файл `impulse-telegram-secret.yaml` (манифест Namespace `impulse` + Secret `impulse-telegram-secrets` с ключом `bot-token`) из переменной `bot_token`. Токен кодируется в base64 и не светится в values-файле. Сам файл `impulse-telegram-secret.yaml` добавлен в `.gitignore`.
+
+3. Примените манифест Secret в кластере вручную:
+
+```bash
+kubectl apply -f impulse-telegram-secret.yaml
+```
+
+> Secret `impulse-telegram-secrets` в namespace `impulse` создаётся вручную через `kubectl apply -f impulse-telegram-secret.yaml` после `terraform apply`. Terraform не вызывает kubectl напрямую — это избегает ошибок доступа к API кластера во время `apply`. При смене `bot_token` в `terraform.tfvars` повторный `terraform apply` перегенерирует `impulse-telegram-secret.yaml`, после чего его нужно повторно применить `kubectl apply -f impulse-telegram-secret.yaml`.
 
 ### 6. Установка Impulse
 
@@ -191,6 +199,7 @@ terraform output -raw grafana_admin_password_command | sh
 | [`ip-dns.tf`](ip-dns.tf) | Статический IP балансировщика (публичные имена через sslip.io, собственная DNS-зона не нужна) |
 | [`k8s.tf`](k8s.tf) | K8s-кластер, ноды, Helm-релиз ingress-nginx, рендер values из `.tftpl`, `terraform output` URL |
 | [`cluster-issuer.yaml.tftpl`](cluster-issuer.yaml.tftpl) | Шаблон ClusterIssuer Let's Encrypt (рендерится в `cluster-issuer.yaml`) |
+| [`impulse-telegram-secret.yaml.tftpl`](impulse-telegram-secret.yaml.tftpl) | Шаблон манифеста Secret `impulse-telegram-secrets` (рендерится в `impulse-telegram-secret.yaml`) |
 | [`values/vmks-values.yaml.tftpl`](values/vmks-values.yaml.tftpl) | Шаблон values victoria-metrics-k8s-stack (рендерится в `values/vmks-values.yaml`) |
 | [`values/values-impulse.yaml.tftpl`](values/values-impulse.yaml.tftpl) | Шаблон values Impulse (рендерится в `values/values-impulse.yaml`) |
 | [`chart/`](chart) | Helm-чарт demo-приложения Golden Signal (Deployment, Service, ServiceMonitor, VMRule) |

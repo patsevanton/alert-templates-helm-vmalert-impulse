@@ -151,13 +151,23 @@ locals {
   })
 
   impulse_values = templatefile("${path.module}/values/values-impulse.yaml.tftpl", {
-    lb_ip             = local.lb_ip
-    telegram_chat_id  = var.telegram_chat_id
-    telegram_user_id  = var.telegram_user_id
+    lb_ip            = local.lb_ip
+    telegram_chat_id = var.telegram_chat_id
+    telegram_user_id = var.telegram_user_id
   })
 
   cluster_issuer = templatefile("${path.module}/cluster-issuer.yaml.tftpl", {
     acme_email = local.acme_email
+  })
+
+  # Рендер манифеста Secret impulse-telegram-secrets из шаблона с токеном бота.
+  # Токен кодируется в base64 для поля data Secret. Применяется пользователем
+  # вручную через kubectl apply -f impulse-telegram-secret.yaml после terraform apply
+  # (kubectl не вызывается из Terraform — это избегает проблем с доступом к API
+  # кластера во время apply). При смене bot_token повторный terraform apply
+  # перегенерирует файл, затем его нужно повторно применить kubectl apply -f.
+  telegram_secret = templatefile("${path.module}/impulse-telegram-secret.yaml.tftpl", {
+    bot_token_b64 = base64encode(var.bot_token)
   })
 }
 
@@ -174,36 +184,20 @@ resource "local_file" "impulse_values" {
   file_permission = "0644"
 }
 
-# Создание/обновление Secret impulse-telegram-secrets с токеном Telegram-бота.
-# Выполняется через kubectl после создания кластера. triggers содержит bot_token
-# (с пометкой sensitive — значение не светится в plan) — при смене токена Secret
-# пересоздаётся автоматически. Namespace impulse создаётся здесь же (idempotent).
-resource "null_resource" "impulse_telegram_secret" {
-  triggers = {
-    bot_token = var.bot_token
-  }
-
-  provisioner "local-exec" {
-    interpreter = ["/bin/bash", "-c"]
-    command = <<-EOT
-      set -e
-      kubectl create namespace impulse 2>/dev/null || true
-      kubectl -n impulse delete secret impulse-telegram-secrets --ignore-not-found=true
-      kubectl -n impulse create secret generic impulse-telegram-secrets \
-        --from-literal=bot-token='${var.bot_token}'
-    EOT
-  }
-
-  depends_on = [
-    yandex_kubernetes_cluster.impulse,
-    yandex_kubernetes_node_group.k8s-node-group,
-  ]
-}
-
 # Рендер cluster-issuer.yaml из шаблона с актуальным email
 resource "local_file" "cluster_issuer" {
   content         = local.cluster_issuer
   filename        = "${path.module}/cluster-issuer.yaml"
+  file_permission = "0644"
+}
+
+# Рендер манифеста Secret impulse-telegram-secrets из шаблона с токеном бота.
+# Применяется пользователем вручную через `kubectl apply -f impulse-telegram-secret.yaml`
+# после `terraform apply`. При смене bot_token повторный `terraform apply` перегенерирует
+# файл — его нужно повторно применить через `kubectl apply -f`.
+resource "local_file" "impulse_telegram_secret" {
+  content         = local.telegram_secret
+  filename        = "${path.module}/impulse-telegram-secret.yaml"
   file_permission = "0644"
 }
 
