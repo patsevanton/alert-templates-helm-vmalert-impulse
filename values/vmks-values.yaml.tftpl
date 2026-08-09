@@ -14,11 +14,26 @@ grafana:
 defaultRules:
   groups:
     etcd:
-      create: false
+      enabled: false
     kubernetes-system-scheduler:
-      create: false
+      enabled: false
     kubernetes-system-controller-manager:
-      create: false
+      enabled: false
+    # В Yandex Managed K8s kube-scheduler недоступен для скрейпинга,
+    # поэтому recording-правила группы kube-scheduler.rules не имеют данных
+    # и порождают шумный алерт RecordingRulesNoData.
+    kube-scheduler.rules:
+      enabled: false
+# Control-plane компоненты Yandex Managed K8s (kube-controller-manager, kube-scheduler,
+# kube-etcd) недоступны для скрейпинга — master управляемый и вне кластера.
+# Отключаем scrape-job, иначе vmagent плодит ScrapePoolHasNoTargets,
+# а vmalert — RecordingRulesNoData для пустых scrape-pool.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
 kube-state-metrics:
   metricLabelsAllowlist:
     - pods=[*]
