@@ -69,6 +69,10 @@ alertmanager:
       receiver: "impulse"
       group_interval: 5m
       repeat_interval: 354m
+      routes:
+        - receiver: "blackhole"
+          matchers:
+            - severity="none"
     receivers:
       - name: impulse
         webhook_configs:
