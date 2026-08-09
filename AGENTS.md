@@ -17,7 +17,6 @@ Operational notes for working with this repo's infrastructure (Yandex Cloud + K8
 | `cluster-issuer.yaml` | ClusterIssuer Let's Encrypt для cert-manager. **Сейчас не применяется** (TLS выключен) — см. секцию «TLS / cert-manager» |
 | `values/vmks-values.yaml.tftpl` | Шаблон values victoria-metrics-k8s-stack (Grafana, vmcluster, alertmanager, vmalert). Рендерится Terraform в `values/vmks-values.yaml` (в `.gitignore`) |
 | `values/values-impulse.yaml.tftpl` | Шаблон values Impulse (Telegram, ingress). Рендерится в `values/values-impulse.yaml` (в `.gitignore`) |
-| `values-telegram_impulse.yaml` | **Справочный пример** альтернативной конфигурации Impulse — см. отдельную секцию ниже |
 | `chart/` | Helm-чарт demo-приложения Golden Signal: `Chart.yaml`, `values.yaml`, `templates/` (`_helpers.tpl`, `deployment.yaml`, `service.yaml`, `servicemonitor.yaml`, `vmrule.yaml`) |
 | `app/` | Исходники demo-приложения на Go (`main.go`, `go.mod`, `Dockerfile`): HTTP-эндпоинты `/` и `/work`, метрики Prometheus `app_requests_total` / `app_errors_total` / `app_request_latency_seconds` / `app_goroutines`, фоновый генератор трафика |
 | `test_install_impulse.md` | Черновик команд установки Impulse (справочно) |
@@ -30,29 +29,6 @@ IP балансировщика известен только после `terraf
 ### Именование сервисов (sslip.io)
 
 Все публичные имена — `<сервис>.<LB_IP>.sslip.io` (Grafana, vmselect, alertmanager, vmalert, impulse). sslip.io — wildcard-DNS: `<anything>.<IP>.sslip.io` резолвится в `<IP>`. Собственная DNS-зона не нужна (в `ip-dns.tf` удалена). IP берётся из `terraform output lb_ip`.
-
-## values-telegram_impulse.yaml (разобраться)
-
-Файл `values-telegram_impulse.yaml` лежит в корне репозитория и **не подключён к Terraform** (не рендерится из `.tftpl`, не упоминается в `k8s.tf`). Это справочный пример альтернативной конфигурации Impulse, отличающийся от рабочего `values/values-impulse.yaml.tftpl`:
-
-| Аспект | `values/values-impulse.yaml.tftpl` (рабочий) | `values-telegram_impulse.yaml` (пример) |
-|---|---|---|
-| Рендер Terraform | да (`local_file` в `k8s.tf`) | нет (статичный) |
-| Хост ingress | `impulse.${lb_ip}.sslip.io` | нет ingress |
-| TLS / cert-manager | выключено (см. ниже) | нет |
-| `chains` (эскалация) | нет | есть (`default`: admin_user, wait 10m) |
-| `incident.notifications` | `new_firing: false` | `new_firing/partial_resolved/status_update: true` |
-| `incident.timeouts` | нет | есть (firing 6h, unknown 6h, resolved 12h) |
-| `ui.columns/sorting/colors` | нет | есть (status/created/alertname/service/severity) |
-| `persistence` | нет | есть (1Gi) |
-| `secrets` | `existing` (Secret `impulse-telegram-secrets`) | `inline` (токен в values — для dev) |
-| `image` | из чарта Impulse по умолчанию | `ghcr.io/eslupmi/impulse` явно |
-
-**Открытые вопросы по файлу** (требуют решения владельцем репозитория):
-- [ ] Определить судьбу файла: оставить как справочный пример / конвертировать в `values/values-telegram_impulse.yaml.tftpl` с рендером через `local_file` / удалить. Сейчас README упоминает его как «пример альтернативной конфигурации».
-- [ ] Если решено оставить как пример — вынести `botToken` из `secrets.inline` (сейчас в файле плейсхолдер `your-telegram-bot-token`, но сам паттерн `inline` небезопасен для коммита).
-- [ ] Если решено конвертировать в `.tftpl` — добавить `ingress` с `impulse.${lb_ip}.sslip.io` (сейчас ingress отсутствует, Impulse не будет доступен снаружи).
-- [ ] `chains.default` ссылается на `admin_user` — убедиться, что этот ключ совпадает с `admin_users` и `users.admin_user.id` из рабочего шаблона.
 
 ## Helm-чарт Impulse
 

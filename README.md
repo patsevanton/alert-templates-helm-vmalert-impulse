@@ -97,30 +97,47 @@ curl http://localhost:8080/work
 
 ### 5. Настройка Telegram-бота
 
-Для отправки уведомлений в Telegram:
+Для отправки уведомлений в Telegram потребуется бот и три значения: `bot-token`, `telegram_chat_id`, `telegram_user_id`.
 
-1. Создайте бота через [@BotFather](https://t.me/BotFather)
-2. Получите токен бота
-3. Добавьте бота в чат или группу, куда будут приходить алерты (бот должен быть добавлен как участник)
-4. Получите `telegram_chat_id` — ID чата/группы, куда будут отправляться уведомления:
+#### Если у вас нет Telegram-бота
+
+Создайте бота и получите его токен:
+
+1. Напишите [@BotFather](https://t.me/BotFather) команду `/newbot`
+2. Задайте имя и username бота (username должен оканчиваться на `bot`)
+3. BotFather вернёт `bot-token` вида `123456789:ABCdefGhI-jklMnoPQRstuVwxYZ`
+4. Добавьте созданного бота в чат или группу, куда будут приходить алерты (бот должен быть участником группы)
+
+#### Если у вас уже есть Telegram-бот
+
+Пропустите раздел выше — у вас уже есть `bot-token`. Добавьте бота в чат или группу, куда будут приходить алерты (если ещё не добавлен).
+
+#### Получение `telegram_chat_id` и `telegram_user_id` (для обоих случаев)
+
+1. Получите `telegram_chat_id` — ID чата/группы, куда будут отправляться уведомления:
    - Добавьте бота [@myidbot](https://t.me/myidbot) в ваш чат/группу
    - Отправьте сообщение `/getgroupid@myidbot` в чат/группу
-   - Бот вернёт информацию о чате `Your group ID is: -xxxxx` — это и есть `telegram_chat_id`
-   - Укажите полученный ID в `values/values-impulse.yaml.tftpl` в секции `channels.incidents_default.id`
-5. Получите `telegram_user_id` для администратора:
+   - Бот вернёт `Your group ID is: -xxxxx` — это и есть `telegram_chat_id`
+2. Получите `telegram_user_id` для администратора:
    - Напишите боту [@userinfobot](https://t.me/userinfobot) в личные сообщения команду `/start`
    - Бот вернёт ваш `id` — это и есть `telegram_user_id`
-   - Укажите полученный ID в `values/values-impulse.yaml.tftpl` в секции `users.admin_user.id`
-6. Создайте Kubernetes Secret с токеном бота:
+
+#### Вписывание значений и создание Secret
+
+1. Впишите значения в [`values/values-impulse.yaml.tftpl`](values/values-impulse.yaml.tftpl):
+   - `users.admin_user.id` → `telegram_user_id`
+   - `channels.incidents_default.id` → `telegram_chat_id`
+2. Перегенерируйте values и создайте Secret с токеном бота:
 
 ```bash
+terraform apply
 kubectl create namespace impulse
 kubectl create secret generic impulse-telegram-secrets \
   --namespace impulse \
   --from-literal=bot-token='xxxxx:xxxxx-xxxxxxx'
 ```
 
-> После редактирования `values/values-impulse.yaml.tftpl` выполните `terraform apply` для перегенерации `values/values-impulse.yaml`.
+> Если Secret с таким именем уже существует, пересоздайте его: `kubectl delete secret impulse-telegram-secrets -n impulse` и выполните `kubectl create secret ...` заново.
 
 ### 6. Установка Impulse
 
@@ -169,4 +186,3 @@ terraform output -raw grafana_admin_password_command | sh
 | [`values/values-impulse.yaml.tftpl`](values/values-impulse.yaml.tftpl) | Шаблон values Impulse (рендерится в `values/values-impulse.yaml`) |
 | [`chart/`](chart) | Helm-чарт demo-приложения Golden Signal (Deployment, Service, ServiceMonitor, VMRule) |
 | [`app/`](app) | Исходники demo-приложения (Go): генератор трафика + метрики Golden Signals (latency, errors, saturation) |
-| [`values-telegram_impulse.yaml`](values-telegram_impulse.yaml) | Пример альтернативной конфигурации Impulse с chains, UI-колонками, persistence |
