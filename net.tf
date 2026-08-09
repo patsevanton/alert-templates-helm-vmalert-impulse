@@ -3,9 +3,13 @@ resource "yandex_vpc_network" "impulse" {
   name = "impulse" # Имя сети VPC
 }
 
-# NAT-шлюз для исходящего трафика из приватных подсетей
+# NAT-шлюз для исходящего трафика из приватных подсетей.
+# Блок shared_egress_gateway {} обязателен: провайдер Yandex автоматически
+# создаёт его для NAT-gateway и записывает в state. Без явного объявления в
+# конфиге Terraform пытается удалить блок → forces replacement на каждом apply.
 resource "yandex_vpc_gateway" "nat-gateway" {
   name = "nat-gateway" # Имя NAT-шлюза
+  shared_egress_gateway {}
 }
 
 # Таблица маршрутизации, направляющая 0.0.0.0/0 через NAT-шлюз

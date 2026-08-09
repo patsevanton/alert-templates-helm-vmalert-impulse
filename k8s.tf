@@ -174,6 +174,32 @@ resource "local_file" "impulse_values" {
   file_permission = "0644"
 }
 
+# Создание/обновление Secret impulse-telegram-secrets с токеном Telegram-бота.
+# Выполняется через kubectl после создания кластера. triggers содержит bot_token
+# (с пометкой sensitive — значение не светится в plan) — при смене токена Secret
+# пересоздаётся автоматически. Namespace impulse создаётся здесь же (idempotent).
+resource "null_resource" "impulse_telegram_secret" {
+  triggers = {
+    bot_token = var.bot_token
+  }
+
+  provisioner "local-exec" {
+    interpreter = ["/bin/bash", "-c"]
+    command = <<-EOT
+      set -e
+      kubectl create namespace impulse 2>/dev/null || true
+      kubectl -n impulse delete secret impulse-telegram-secrets --ignore-not-found=true
+      kubectl -n impulse create secret generic impulse-telegram-secrets \
+        --from-literal=bot-token='${var.bot_token}'
+    EOT
+  }
+
+  depends_on = [
+    yandex_kubernetes_cluster.impulse,
+    yandex_kubernetes_node_group.k8s-node-group,
+  ]
+}
+
 # Рендер cluster-issuer.yaml из шаблона с актуальным email
 resource "local_file" "cluster_issuer" {
   content         = local.cluster_issuer

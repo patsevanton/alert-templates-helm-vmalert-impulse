@@ -16,6 +16,10 @@ terraform {
       source  = "hashicorp/local"
       version = ">= 2.4.0"
     }
+    null = {
+      source  = "hashicorp/null"
+      version = ">= 3.2.0"
+    }
   }
   required_version = ">= 1.3"
 }
@@ -40,4 +44,14 @@ variable "telegram_chat_id" {
 variable "telegram_user_id" {
   type        = string
   description = "ID пользователя-администратора Telegram (положительное число)"
+}
+
+# Токен Telegram-бота. Чувствительные данные — не выводится в terraform output и
+# не попадает в git (terraform.tfvars в .gitignore). Используется для создания
+# Secret impulse-telegram-secrets в namespace impulse через kubectl (null_resource),
+# чтобы не хранить токен в values-файле, который рендерится на диск.
+variable "bot_token" {
+  type        = string
+  description = "Токен Telegram-бота вида 123456789:ABCdefGhI-jklMnoPQRstuVwxYZ"
+  sensitive   = true
 }

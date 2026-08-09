@@ -135,6 +135,7 @@ curl http://localhost:8080/work
 cat > terraform.tfvars <<'EOF'
 telegram_chat_id = "<ваш telegram_chat_id>"
 telegram_user_id = "<ваш telegram_user_id>"
+bot_token        = "<ваш bot-token вида 123456789:ABCdefGhI-jklMnoPQRstuVwxYZ>"
 EOF
 ```
 
@@ -142,13 +143,9 @@ EOF
 
 ```bash
 terraform apply
-kubectl create namespace impulse
-kubectl create secret generic impulse-telegram-secrets \
-  --namespace impulse \
-  --from-literal=bot-token='xxxxx:xxxxx-xxxxxxx'
 ```
 
-> Если Secret с таким именем уже существует, пересоздайте его: `kubectl delete secret impulse-telegram-secrets -n impulse` и выполните `kubectl create secret ...` заново.
+> Secret `impulse-telegram-secrets` в namespace `impulse` создаётся автоматически Terraform (ресурс `null_resource.impulse_telegram_secret` в `k8s.tf`) из переменной `bot_token`. Ручной `kubectl create secret` больше не требуется. При смене `bot_token` в `terraform.tfvars` повторный `terraform apply` пересоздаст Secret автоматически.
 
 ### 6. Установка Impulse
 
@@ -188,8 +185,8 @@ terraform output -raw grafana_admin_password_command | sh
 
 | Файл | Описание |
 |------|----------|
-| [`versions.tf`](versions.tf) | Провайдеры Terraform (Yandex Cloud, Helm, Kubernetes, time), переменные `acme_email`, `telegram_chat_id`, `telegram_user_id` |
-| `terraform.tfvars` | Значения переменных Terraform (`telegram_chat_id`, `telegram_user_id`). **В `.gitignore`** — не коммитится, содержит чувствительные данные |
+| [`versions.tf`](versions.tf) | Провайдеры Terraform (Yandex Cloud, Helm, Kubernetes, time, local, null), переменные `acme_email`, `telegram_chat_id`, `telegram_user_id`, `bot_token` |
+| `terraform.tfvars` | Значения переменных Terraform (`telegram_chat_id`, `telegram_user_id`, `bot_token`). **В `.gitignore`** — не коммитится, содержит чувствительные данные |
 | [`net.tf`](net.tf) | VPC-сеть, подсети, NAT-шлюз + route table для исходящего трафика из приватных подсетей |
 | [`ip-dns.tf`](ip-dns.tf) | Статический IP балансировщика (публичные имена через sslip.io, собственная DNS-зона не нужна) |
 | [`k8s.tf`](k8s.tf) | K8s-кластер, ноды, Helm-релиз ingress-nginx, рендер values из `.tftpl`, `terraform output` URL |
