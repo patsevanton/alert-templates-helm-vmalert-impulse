@@ -54,30 +54,26 @@ IP балансировщика известен только после `terraf
 - [ ] Если решено конвертировать в `.tftpl` — добавить `ingress` с `impulse.${lb_ip}.sslip.io` (сейчас ingress отсутствует, Impulse не будет доступен снаружи).
 - [ ] `chains.default` ссылается на `admin_user` — убедиться, что этот ключ совпадает с `admin_users` и `users.admin_user.id` из рабочего шаблона.
 
-## Helm-чарт Impulse (уточнить источник)
+## Helm-чарт Impulse
 
 Impulse устанавливается через Helm вручную (шаг 5 в README), не через `helm_release` в Terraform. Команда установки описана в двух местах:
 
 | Файл | Назначение | Команда |
 |---|---|---|
-| `README.md` (шаг 5) | Рабочая инструкция для пользователя | `helm upgrade --install impulse impulse/impulse --version 1.0.6 -f values/values-impulse.yaml` |
-| `test_install_impulse.md` | Черновик команд (справочно) | то же, но `-f values-impulse.yaml` (без каталога `values/`) — путь устарел |
+| `README.md` (шаг 5) | Рабочая инструкция для пользователя | `helm install my-impulse impulse/impulse --version 1.0.14 -f values/values-impulse.yaml` |
+| `test_install_impulse.md` | Черновик команд (справочно) | то же |
 
-**Проблема: репозиторий чарта недоступен.** URL `https://eslupmi.github.io/helm-charts/packages` возвращает `404 Not Found` — `helm repo add` завершается ошибкой, получить список версий и установить чарт нельзя. Актуальный источник чарта Impulse неизвестен.
-
-**Параметры установки (зафиксированы в README, проверить после уточнения источника):**
-- репо: `https://eslupmi.github.io/helm-charts/packages` (нужен рабочий URL)
+**Параметры установки:**
+- репо: `https://eslupmi-community.github.io/helm-charts`
 - чарт: `impulse/impulse`
-- версия: `1.0.6` (актуальность проверить невозможно — репо недоступен)
+- версия: `1.0.14`
+- release name: `my-impulse`
 - values: `values/values-impulse.yaml` (рендерится Terraform из `values/values-impulse.yaml.tftpl`)
 - namespace: `impulse` (создаётся `--create-namespace`)
 
 **Открытые вопросы по helm-чарту Impulse** (требуют решения владельцем репозитория):
-- [ ] Указать актуальный URL helm-репозитория Impulse (текущий `https://eslupmi.github.io/helm-charts/packages` — 404). Возможные варианты: GitHub Pages под другим путём, OCI-репозиторий (`oci://ghcr.io/...`), локальный tarball.
-- [ ] Уточнить актуальную версию чарта (сейчас `1.0.6` — проверить нельзя, пока репо недоступен).
-- [ ] После уточнения источника — обновить команду в `README.md` (шаг 5) и `test_install_impulse.md` (или удалить `test_install_impulse.md` как дубликат).
-- [ ] В `test_install_impulse.md` исправить путь к values: `-f values-impulse.yaml` → `-f values/values-impulse.yaml` (рабочий файл лежит в `values/`).
 - [ ] Рассмотреть вынос установки Impulse в `helm_release` в `k8s.tf` (по аналогии с `ingress_nginx`) — но только после того, как источник чарта станет стабильным.
+- [ ] Рассмотреть удаление `test_install_impulse.md` как дубликата README.
 
 ## Пароль Grafana (обработка как в соседнем проекте)
 

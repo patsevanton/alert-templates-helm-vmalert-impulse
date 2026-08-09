@@ -1,11 +1,11 @@
 Для установки Impulse через Helm используйте следующие команды:
 
 ```bash
-helm repo add impulse https://eslupmi.github.io/helm-charts/packages
+helm repo add impulse https://eslupmi-community.github.io/helm-charts
 helm repo update
-helm upgrade --install impulse impulse/impulse \
-  --version 1.0.6 \
+helm install my-impulse impulse/impulse \
+  --version 1.0.14 \
   --namespace impulse \
   --create-namespace \
-  -f values-impulse.yaml
+  -f values/values-impulse.yaml
 ```
