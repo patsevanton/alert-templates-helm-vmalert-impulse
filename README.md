@@ -46,7 +46,7 @@ helm upgrade --install cert-manager jetstack/cert-manager \
   --wait
 ```
 
-ClusterIssuer рендерится Terraform из [`cluster-issuer.yaml.tftpl`](cluster-issuer.yaml.tftpl) (email формируется из IP балансировщика: `admin@cert-manager.<LB_IP>.sslip.io`). Примените после `terraform apply`:
+Примените ClusterIssuer после `terraform apply`:
 
 ```bash
 kubectl apply -f cluster-issuer.yaml
