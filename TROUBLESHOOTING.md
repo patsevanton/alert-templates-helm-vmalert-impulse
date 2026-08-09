@@ -1,23 +1,5 @@
 # Оставшиеся задачи
 
-## Задача 1 (критичная): Impulse не отправляет алерты в Telegram
-
-**Симптом:** Вебхуки от Alertmanager доходят до Impulse (видны в логах `Alert received`), но Impulse не может отправить сообщение в Telegram:
-```
-Telegram topic creation failed — Bad Request: the chat is not a forum
-Incident creation aborted: failed to create thread
-channel_id: -810044683
-```
-
-**Причина:** Impulse пытается создать топик в чате `-810044683`, но чат не является форумом (супергруппой с включёнными темами). Impulse требует Telegram-чат в формате форума для создания отдельных топиков под инциденты.
-
-**Варианты решения:**
-1. Преобразовать существующий чат в супергруппу и включить темы (форум) в настройках Telegram.
-2. Создать новый чат-форум и обновить `telegram_chat_id` в `terraform.tfvars`, затем `terraform apply` → `kubectl apply -f impulse-telegram-secret.yaml` → `helm upgrade my-impulse ...`.
-
-**Статус:** Не исправлено. Требует действий пользователя в Telegram.
-
-
 ## Задача 2 (разовое): Новый под Impulse зависал на старте после `helm upgrade` (смена `telegram_chat_id`)
 
 **Симптом:** После `helm upgrade my-impulse -f values/values-impulse.yaml` (выполнялся при смене `telegram_chat_id`) новый под Impulse не переходил в primary — висел на старте, `/readyz` отвечал `503` (standby), алерты не отправлялись.
