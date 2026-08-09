@@ -31,9 +31,30 @@ $(terraform output -raw k8s_cluster_credentials_command)
 kubectl get nodes
 ```
 
-### 2. VM K8s Stack (метрики, Grafana)
+### 2. cert-manager (TLS для ingress)
 
-Установка victoria-metrics-k8s-stack с Grafana. Values-файл уже сгенерирован Terraform с актуальным sslip.io-хостом:
+Установка cert-manager для выпуска сертификатов Let's Encrypt через HTTP-01:
+
+```bash
+helm repo add jetstack https://charts.jetstack.io
+helm repo update
+helm upgrade --install cert-manager jetstack/cert-manager \
+  --namespace cert-manager \
+  --create-namespace \
+  --version v1.21.1 \
+  --set crds.enabled=true \
+  --wait
+```
+
+ClusterIssuer рендерится Terraform из [`cluster-issuer.yaml.tftpl`](cluster-issuer.yaml.tftpl) (email формируется из IP балансировщика: `admin@cert-manager.<LB_IP>.sslip.io`). Примените после `terraform apply`:
+
+```bash
+kubectl apply -f cluster-issuer.yaml
+```
+
+### 3. VM K8s Stack (метрики, Grafana)
+
+Установка victoria-metrics-k8s-stack с Grafana. Values-файл уже сгенерирован Terraform с актуальным sslip.io-хостом и TLS-настройками ingress:
 
 ```bash
 helm upgrade --install vmks \
@@ -41,14 +62,14 @@ helm upgrade --install vmks \
   --namespace vmks \
   --create-namespace \
   --wait \
-  --version 0.90.1 \
+  --version 0.90.2 \
   --timeout 15m \
   -f values/vmks-values.yaml
 ```
 
 Шаблон values: [`values/vmks-values.yaml.tftpl`](values/vmks-values.yaml.tftpl) (рендерится в `values/vmks-values.yaml`).
 
-### 3. Установка приложения через Helm
+### 4. Установка приложения через Helm
 
 Для установки demo-приложения Golden Signal в Kubernetes-кластере используйте Helm:
 
@@ -74,7 +95,7 @@ curl http://localhost:8080/metrics
 curl http://localhost:8080/work
 ```
 
-### 4. Настройка Telegram-бота
+### 5. Настройка Telegram-бота
 
 Для отправки уведомлений в Telegram:
 
@@ -101,7 +122,7 @@ kubectl create secret generic impulse-telegram-secrets \
 
 > После редактирования `values/values-impulse.yaml.tftpl` выполните `terraform apply` для перегенерации `values/values-impulse.yaml`.
 
-### 5. Установка Impulse
+### 6. Установка Impulse
 
 Для установки Impulse через Helm используйте следующие команды:
 
@@ -119,13 +140,13 @@ helm install my-impulse impulse/impulse \
 
 ## Доступ к сервисам
 
-URL формируются через sslip.io из публичного IP балансировщика ingress-nginx (IP берётся из `terraform output lb_ip`):
+URL формируются через sslip.io из публичного IP балансировщика ingress-nginx (IP берётся из `terraform output lb_ip`). TLS через cert-manager + Let's Encrypt:
 
-- **Grafana**: `http://grafana.<LB_IP>.sslip.io`
-- **VictoriaMetrics**: `http://vmselect.<LB_IP>.sslip.io`
-- **Alertmanager**: `http://alertmanager.<LB_IP>.sslip.io`
-- **vmalert**: `http://vmalert.<LB_IP>.sslip.io`
-- **Impulse**: `http://impulse.<LB_IP>.sslip.io`
+- **Grafana**: `https://grafana.<LB_IP>.sslip.io`
+- **VictoriaMetrics**: `https://vmselect.<LB_IP>.sslip.io`
+- **Alertmanager**: `https://alertmanager.<LB_IP>.sslip.io`
+- **vmalert**: `https://vmalert.<LB_IP>.sslip.io`
+- **Impulse**: `https://impulse.<LB_IP>.sslip.io`
 
 Для получения пароля admin от Grafana:
 
@@ -143,6 +164,7 @@ terraform output -raw grafana_admin_password_command | sh
 | [`net.tf`](net.tf) | VPC-сеть, подсети, NAT-шлюз + route table для исходящего трафика из приватных подсетей |
 | [`ip-dns.tf`](ip-dns.tf) | Статический IP балансировщика (публичные имена через sslip.io, собственная DNS-зона не нужна) |
 | [`k8s.tf`](k8s.tf) | K8s-кластер, ноды, Helm-релиз ingress-nginx, рендер values из `.tftpl`, `terraform output` URL |
+| [`cluster-issuer.yaml.tftpl`](cluster-issuer.yaml.tftpl) | Шаблон ClusterIssuer Let's Encrypt (рендерится в `cluster-issuer.yaml`) |
 | [`values/vmks-values.yaml.tftpl`](values/vmks-values.yaml.tftpl) | Шаблон values victoria-metrics-k8s-stack (рендерится в `values/vmks-values.yaml`) |
 | [`values/values-impulse.yaml.tftpl`](values/values-impulse.yaml.tftpl) | Шаблон values Impulse (рендерится в `values/values-impulse.yaml`) |
 | [`chart/`](chart) | Helm-чарт demo-приложения Golden Signal (Deployment, Service, ServiceMonitor, VMRule) |

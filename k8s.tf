@@ -143,12 +143,19 @@ resource "helm_release" "ingress_nginx" {
 locals {
   lb_ip = yandex_vpc_address.addr.external_ipv4_address[0].address
 
+  # Email для ClusterIssuer: если var.acme_email не задан — формируем из IP балансировщика.
+  acme_email = coalesce(var.acme_email, "admin@cert-manager.${yandex_vpc_address.addr.external_ipv4_address[0].address}.sslip.io")
+
   vmks_values = templatefile("${path.module}/values/vmks-values.yaml.tftpl", {
     lb_ip = local.lb_ip
   })
 
   impulse_values = templatefile("${path.module}/values/values-impulse.yaml.tftpl", {
     lb_ip = local.lb_ip
+  })
+
+  cluster_issuer = templatefile("${path.module}/cluster-issuer.yaml.tftpl", {
+    acme_email = local.acme_email
   })
 }
 
@@ -162,6 +169,13 @@ resource "local_file" "vmks_values" {
 resource "local_file" "impulse_values" {
   content         = local.impulse_values
   filename        = "${path.module}/values/values-impulse.yaml"
+  file_permission = "0644"
+}
+
+# Рендер cluster-issuer.yaml из шаблона с актуальным email
+resource "local_file" "cluster_issuer" {
+  content         = local.cluster_issuer
+  filename        = "${path.module}/cluster-issuer.yaml"
   file_permission = "0644"
 }
 
@@ -179,27 +193,27 @@ output "lb_ip" {
 
 output "grafana_url" {
   description = "URL Grafana (сформирован через sslip.io из публичного IP балансировщика)"
-  value       = "http://grafana.${local.lb_ip}.sslip.io"
+  value       = "https://grafana.${local.lb_ip}.sslip.io"
 }
 
 output "vmselect_url" {
   description = "URL VictoriaMetrics vmselect (сформирован через sslip.io)"
-  value       = "http://vmselect.${local.lb_ip}.sslip.io"
+  value       = "https://vmselect.${local.lb_ip}.sslip.io"
 }
 
 output "alertmanager_url" {
   description = "URL Alertmanager (сформирован через sslip.io)"
-  value       = "http://alertmanager.${local.lb_ip}.sslip.io"
+  value       = "https://alertmanager.${local.lb_ip}.sslip.io"
 }
 
 output "vmalert_url" {
   description = "URL vmalert (сформирован через sslip.io)"
-  value       = "http://vmalert.${local.lb_ip}.sslip.io"
+  value       = "https://vmalert.${local.lb_ip}.sslip.io"
 }
 
 output "impulse_url" {
-  description = "URL Impulse (сформирован через sslip.io; HTTP — TLS пока выключен, см. AGENTS.md)"
-  value       = "http://impulse.${local.lb_ip}.sslip.io"
+  description = "URL Impulse (сформирован через sslip.io из публичного IP балансировщика)"
+  value       = "https://impulse.${local.lb_ip}.sslip.io"
 }
 
 output "grafana_admin_user" {

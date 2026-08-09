@@ -5,7 +5,12 @@ grafana:
     hosts:
       - grafana.${lb_ip}.sslip.io
     annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    tls:
+      - secretName: grafana-tls
+        hosts:
+          - grafana.${lb_ip}.sslip.io
 defaultRules:
   groups:
     etcd:
@@ -22,9 +27,14 @@ vmcluster:
       enabled: true
       ingressClassName: nginx
       annotations:
-        nginx.ingress.kubernetes.io/ssl-redirect: "false"
+        nginx.ingress.kubernetes.io/ssl-redirect: "true"
+        cert-manager.io/cluster-issuer: letsencrypt-prod
       hosts:
         - vmselect.${lb_ip}.sslip.io
+      tls:
+        - secretName: vmselect-tls
+          hosts:
+            - vmselect.${lb_ip}.sslip.io
 alertmanager:
   enabled: true
   spec:
@@ -51,7 +61,12 @@ alertmanager:
     hosts:
       - alertmanager.${lb_ip}.sslip.io
     annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    tls:
+      - secretName: alertmanager-tls
+        hosts:
+          - alertmanager.${lb_ip}.sslip.io
 vmalert:
   enabled: true
   ingress:
@@ -60,6 +75,11 @@ vmalert:
     hosts:
       - vmalert.${lb_ip}.sslip.io
     annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "false"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
     path: "/"
     pathType: Prefix
+    tls:
+      - secretName: vmalert-tls
+        hosts:
+          - vmalert.${lb_ip}.sslip.io
