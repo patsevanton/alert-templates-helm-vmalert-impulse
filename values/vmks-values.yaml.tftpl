@@ -15,6 +15,10 @@ defaultRules:
   groups:
     etcd:
       create: false
+    kubernetes-system-scheduler:
+      create: false
+    kubernetes-system-controller-manager:
+      create: false
 kube-state-metrics:
   metricLabelsAllowlist:
     - pods=[*]
@@ -53,7 +57,7 @@ alertmanager:
     receivers:
       - name: impulse
         webhook_configs:
-          - url: 'http://impulse.impulse.svc.cluster.local:5000/'
+          - url: 'http://my-impulse.impulse.svc.cluster.local:5000/'
       - name: blackhole
   ingress:
     enabled: true
