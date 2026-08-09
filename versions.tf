@@ -31,3 +31,13 @@ variable "acme_email" {
   description = "Email ACME-аккаунта Let's Encrypt в ClusterIssuer letsencrypt-prod"
   default     = null
 }
+
+variable "telegram_chat_id" {
+  type        = string
+  description = "ID чата/группы Telegram, куда будут отправляться алерты (отрицательное число для групп)"
+}
+
+variable "telegram_user_id" {
+  type        = string
+  description = "ID пользователя-администратора Telegram (положительное число)"
+}

@@ -129,9 +129,15 @@ curl http://localhost:8080/work
 
 #### Вписывание значений и создание Secret
 
-1. Впишите значения в [`values/values-impulse.yaml.tftpl`](values/values-impulse.yaml.tftpl):
-   - `users.admin_user.id` → `telegram_user_id`
-   - `channels.incidents_default.id` → `telegram_chat_id`
+1. Создайте файл `terraform.tfvars` в корне репозитория со значениями (файл уже в `.gitignore`, значения не попадут в git):
+
+```bash
+cat > terraform.tfvars <<'EOF'
+telegram_chat_id = "<ваш telegram_chat_id>"
+telegram_user_id = "<ваш telegram_user_id>"
+EOF
+```
+
 2. Перегенерируйте values и создайте Secret с токеном бота:
 
 ```bash
@@ -182,7 +188,8 @@ terraform output -raw grafana_admin_password_command | sh
 
 | Файл | Описание |
 |------|----------|
-| [`versions.tf`](versions.tf) | Провайдеры Terraform (Yandex Cloud, Helm, Kubernetes, time) |
+| [`versions.tf`](versions.tf) | Провайдеры Terraform (Yandex Cloud, Helm, Kubernetes, time), переменные `acme_email`, `telegram_chat_id`, `telegram_user_id` |
+| `terraform.tfvars` | Значения переменных Terraform (`telegram_chat_id`, `telegram_user_id`). **В `.gitignore`** — не коммитится, содержит чувствительные данные |
 | [`net.tf`](net.tf) | VPC-сеть, подсети, NAT-шлюз + route table для исходящего трафика из приватных подсетей |
 | [`ip-dns.tf`](ip-dns.tf) | Статический IP балансировщика (публичные имена через sslip.io, собственная DNS-зона не нужна) |
 | [`k8s.tf`](k8s.tf) | K8s-кластер, ноды, Helm-релиз ingress-nginx, рендер values из `.tftpl`, `terraform output` URL |
