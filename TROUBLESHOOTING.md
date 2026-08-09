@@ -17,23 +17,8 @@ channel_id: -810044683
 
 **Статус:** Не исправлено. Требует действий пользователя в Telegram.
 
----
 
-## Задача 2 (разовое): Перезапуск vmalert после установки/обновления VMRule golden-signal-app
-
-**Симптом:** После `helm install/upgrade golden-signal-app` группа правил `golden-signal-alerts` может не загрузиться в vmalert до принудительного reload.
-
-**Workaround:** После установки/обновления demo-приложения выполнить:
-```bash
-kubectl exec -n vmks deploy/vmalert-vmks-victoria-metrics-k8s-stack -c vmalert -- \
-  /bin/sh -c 'wget -qO- --post-data="" http://127.0.0.1:8080/-/reload'
-```
-
-**Статус:** Не исправлено. Воспроизводимость бага не подтверждена (возможно разовая проблема v1.149.0).
-
----
-
-## Задача 3 (разовое): Новый под Impulse зависал на старте после `helm upgrade` (смена `telegram_chat_id`)
+## Задача 2 (разовое): Новый под Impulse зависал на старте после `helm upgrade` (смена `telegram_chat_id`)
 
 **Симптом:** После `helm upgrade my-impulse -f values/values-impulse.yaml` (выполнялся при смене `telegram_chat_id`) новый под Impulse не переходил в primary — висел на старте, `/readyz` отвечал `503` (standby), алерты не отправлялись.
 
