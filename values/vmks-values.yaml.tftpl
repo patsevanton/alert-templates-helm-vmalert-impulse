@@ -42,58 +42,43 @@ kube-state-metrics:
   metricLabelsAllowlist:
     - pods=[*]
 vmsingle:
-  enabled: false
-vmcluster:
   enabled: true
+  spec:
+    # Демо без HA: 1 под VMSingle вместо VMCluster (vmstorage+vmselect+vminsert).
+    # VMSingle — единый процесс хранения+запроса, без репликации. PVC 20Gi RWO.
+    port: "8428"
+    retentionPeriod: "1"
+    replicaCount: 1
+    storage:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: 20Gi
   ingress:
-    select:
-      enabled: true
-      ingressClassName: nginx
-      annotations:
-        nginx.ingress.kubernetes.io/ssl-redirect: "true"
-        cert-manager.io/cluster-issuer: letsencrypt-prod
-      hosts:
-        - vmselect.${lb_ip}.sslip.io
-      tls:
-        - secretName: vmselect-tls
-          hosts:
-            - vmselect.${lb_ip}.sslip.io
+    enabled: true
+    ingressClassName: nginx
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    hosts:
+      - vmsingle.${lb_ip}.sslip.io
+    tls:
+      - secretName: vmsingle-tls
+        hosts:
+          - vmsingle.${lb_ip}.sslip.io
 alertmanager:
   enabled: true
   spec:
-    # HA: 3 реплики. При replicaCount > 1 оператор VictoriaMetrics автоматически
-    # добавляет --cluster.listen-address и --cluster.peer=<sts>-N.<svc>:9094
-    # (Gossip-протокол), благодаря которому только одна из реплик отправляет
-    # уведомление, остальные его дропают. Impulse (webhook-ресивер) получит одно
-    # уведомление на инцидент, дублей не будет.
-    replicaCount: 3
+    # Демо без HA: 1 реплика Alertmanager. Без Gossip-кластера (оператор при
+    # replicaCount=1 добавляет --cluster.listen-address=, кластер-режим выключен).
+    replicaCount: 1
     port: "9093"
     selectAllByDefault: true
     image:
       tag: v0.33.1
     externalURL: ""
     routePrefix: /
-    # PVC на реплику (StatefulSet). Gossip синхронизирует silences и nflog между
-    # репликами, но локальный storage ускоряет восстановление после рестарта и
-    # хранит silence history. network-ssd — стандартный storageClass Yandex Managed K8s.
-    storage:
-      volumeClaimTemplate:
-        spec:
-          storageClassName: network-ssd
-          accessModes:
-            - ReadWriteOnce
-          resources:
-            requests:
-              storage: 2Gi
-    # Распределяем 3 пода по разным нодам (кластер из 3 нод) — иначе scheduler
-    # может поставить их на одну ноду, что нивелирует HA при падении ноды.
-    topologySpreadConstraints:
-      - maxSkew: 1
-        topologyKey: kubernetes.io/hostname
-        whenUnsatisfiable: DoNotSchedule
-        labelSelector:
-          matchLabels:
-            app.kubernetes.io/name: vmalertmanager-vmks
   config:
     route:
       receiver: "impulse"

@@ -218,9 +218,9 @@ output "grafana_url" {
   value       = "https://grafana.${local.lb_ip}.sslip.io"
 }
 
-output "vmselect_url" {
-  description = "URL VictoriaMetrics vmselect (сформирован через sslip.io)"
-  value       = "https://vmselect.${local.lb_ip}.sslip.io"
+output "vmsingle_url" {
+  description = "URL VictoriaMetrics vmsingle (сформирован через sslip.io)"
+  value       = "https://vmsingle.${local.lb_ip}.sslip.io"
 }
 
 output "alertmanager_url" {

@@ -21,4 +21,4 @@ resource "time_sleep" "wait_lb_release" {
 }
 
 # Публичный DNS не требуется: используются sslip.io-имена вида <сервис>.<LB_IP>.sslip.io
-# (grafana, vmselect, alertmanager, vmalert, impulse), которые резолвятся в IP балансировщика.
+# (grafana, vmsingle, alertmanager, vmalert, impulse), которые резолвятся в IP балансировщика.

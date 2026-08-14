@@ -29,7 +29,7 @@ IP балансировщика известен только после `terraf
 
 ### Именование сервисов (sslip.io)
 
-Все публичные имена — `<сервис>.<LB_IP>.sslip.io` (Grafana, vmselect, alertmanager, vmalert, impulse). sslip.io — wildcard-DNS: `<anything>.<IP>.sslip.io` резолвится в `<IP>`. Собственная DNS-зона не нужна (в `ip-dns.tf` удалена). IP берётся из `terraform output lb_ip`.
+Все публичные имена — `<сервис>.<LB_IP>.sslip.io` (Grafana, vmsingle, alertmanager, vmalert, impulse). sslip.io — wildcard-DNS: `<anything>.<IP>.sslip.io` резолвится в `<IP>`. Собственная DNS-зона не нужна (в `ip-dns.tf` удалена). IP берётся из `terraform output lb_ip`.
 
 ## Helm-чарт Impulse
 
@@ -76,7 +76,7 @@ terraform output -raw grafana_admin_password_command | sh
 
 ## TLS / cert-manager
 
-**Текущее состояние: TLS выключен.** Все ingress (Grafana, vmselect, alertmanager, vmalert, Impulse) работают по HTTP, `nginx.ingress.kubernetes.io/ssl-redirect: "false"` в `values/vmks-values.yaml.tftpl`. В `values/values-impulse.yaml.tftpl` убраны `cert-manager.io/cluster-issuer`, `kubernetes.io/tls-acme` и блок `tls`; `impulse_address` изменён на `http://`.
+**Текущее состояние: TLS выключен.** Все ingress (Grafana, vmsingle, alertmanager, vmalert, Impulse) работают по HTTP, `nginx.ingress.kubernetes.io/ssl-redirect: "false"` в `values/vmks-values.yaml.tftpl`. В `values/values-impulse.yaml.tftpl` убраны `cert-manager.io/cluster-issuer`, `kubernetes.io/tls-acme` и блок `tls`; `impulse_address` изменён на `http://`.
 
 **Почему это проблема:** Telegram Bot API принимает webhooks и callback-адреса только по HTTPS. Без HTTPS Telegram-интеграция Impulse (`impulse_address` для кнопок callback) работать не будет.
 

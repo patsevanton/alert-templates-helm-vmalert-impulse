@@ -61,7 +61,7 @@ URL сервисов и IP балансировщика выводятся в `t
 ```bash
 terraform output lb_ip
 terraform output grafana_url
-terraform output vmselect_url
+terraform output vmsingle_url
 terraform output alertmanager_url
 terraform output vmalert_url
 terraform output impulse_url
