@@ -10,7 +10,125 @@
 
 ### 1. VM K8s Stack (метрики, Grafana)
 
-Установка victoria-metrics-k8s-stack с Grafana. Values-файл уже сгенерирован Terraform с актуальным sslip.io-хостом и TLS-настройками ingress:
+Установка victoria-metrics-k8s-stack с Grafana. Values-файл примерно такого вида:
+
+```
+cat <<'EOF' >> values/vmks-values.yaml
+---
+grafana:
+  ingress:
+    ingressClassName: nginx
+    enabled: true
+    hosts:
+      - grafana.mycompany.corp
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    tls:
+      - secretName: grafana-tls
+        hosts:
+          - grafana.mycompany.corp
+defaultRules:
+  groups:
+    etcd:
+      enabled: false
+    kubernetes-system-scheduler:
+      enabled: false
+    kubernetes-system-controller-manager:
+      enabled: false
+    # В Yandex Managed K8s kube-scheduler недоступен для скрейпинга,
+    # поэтому recording-правила группы kube-scheduler.rules не имеют данных
+    # и порождают шумный алерт RecordingRulesNoData.
+    kube-scheduler.rules:
+      enabled: false
+# Control-plane компоненты Yandex Managed K8s (kube-controller-manager, kube-scheduler,
+# kube-etcd) недоступны для скрейпинга — master управляемый и вне кластера.
+# Отключаем scrape-job, иначе vmagent плодит ScrapePoolHasNoTargets,
+# а vmalert — RecordingRulesNoData для пустых scrape-pool.
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeEtcd:
+  enabled: false
+# kube-state-metrics: разрешаем собирать все labels подов (metricLabelsAllowlist).
+# По умолчанию kube-state-metrics не экспортирует labels Pod-ов в своих метриках,
+# чтобы не раздувать кардинальность. Список pods=[*] включает все labels —
+# они нужны для правил алертов и маршрутизации (например, фильтрация по команде/сервису).
+kube-state-metrics:
+  metricLabelsAllowlist:
+    - pods=[*]
+vmsingle:
+  enabled: false
+vmcluster:
+  enabled: true
+  ingress:
+    select:
+      enabled: true
+      ingressClassName: nginx
+      annotations:
+        nginx.ingress.kubernetes.io/ssl-redirect: "true"
+        cert-manager.io/cluster-issuer: letsencrypt-prod
+      hosts:
+        - vmselect.mycompany.corp
+      tls:
+        - secretName: vmselect-tls
+          hosts:
+            - vmselect.mycompany.corp
+alertmanager:
+  enabled: true
+  spec:
+    replicaCount: 1
+    port: "9093"
+    selectAllByDefault: true
+    image:
+      tag: v0.33.1
+    externalURL: ""
+    routePrefix: /
+  config:
+    route:
+      receiver: "impulse"
+      group_interval: 5m
+      repeat_interval: 354m
+      routes:
+        - receiver: "blackhole"
+          matchers:
+            - severity="none"
+    receivers:
+      - name: impulse
+        webhook_configs:
+          - url: 'http://my-impulse.impulse.svc.cluster.local:5000/'
+      - name: blackhole
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - alertmanager.mycompany.corp
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    tls:
+      - secretName: alertmanager-tls
+        hosts:
+          - alertmanager.mycompany.corp
+vmalert:
+  enabled: true
+  ingress:
+    enabled: true
+    ingressClassName: nginx
+    hosts:
+      - vmalert.mycompany.corp
+    annotations:
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      cert-manager.io/cluster-issuer: letsencrypt-prod
+    path: "/"
+    pathType: Prefix
+    tls:
+      - secretName: vmalert-tls
+        hosts:
+          - vmalert.mycompany.corp
+EOF
+```
 
 ```bash
 helm upgrade --install vmks \
@@ -22,8 +140,6 @@ helm upgrade --install vmks \
   --timeout 15m \
   -f values/vmks-values.yaml
 ```
-
-Шаблон values: [`values/vmks-values.yaml.tftpl`](values/vmks-values.yaml.tftpl) (рендерится в `values/vmks-values.yaml`).
 
 ### 2. Установка приложения через Helm
 
