@@ -8,9 +8,7 @@
 
 ## Порядок развёртывания
 
-### 1. VM K8s Stack (метрики, Grafana)
-
-Установка victoria-metrics-k8s-stack с Grafana. Values-файл примерно такого вида:
+### 1. Подготовка файла конфигурации victoria-metrics-k8s-stack
 
 ```
 cat <<'EOF' >> values/vmks-values.yaml
@@ -130,6 +128,8 @@ vmalert:
 EOF
 ```
 
+### 2. VM K8s Stack (метрики, Grafana)
+
 ```bash
 helm upgrade --install vmks \
   oci://ghcr.io/victoriametrics/helm-charts/victoria-metrics-k8s-stack \
@@ -141,17 +141,37 @@ helm upgrade --install vmks \
   -f values/vmks-values.yaml
 ```
 
-### 2. Установка приложения через Helm
+### 2. Установка demo-приложения Golden Signal через Helm
 
-Для установки demo-приложения Golden Signal в Kubernetes-кластере используйте Helm:
+Demo-приложение Golden Signal написано на **Go** (`app/main.go`).
+
+Приложение:
+
+- Экспонирует HTTP-эндпоинты `/` (health) и `/work` (обработка запроса со случайной задержкой 100–499 мс и ~20% случайных ошибок).
+- Экспортирует Prometheus-метрики на `/metrics`:
+  - `app_requests_total` — счётчик входящих HTTP-запросов (counter);
+  - `app_errors_total` — счётчик ответов с ошибкой (counter);
+  - `app_request_latency_seconds` — гистограмма времени обработки запроса (histogram);
+  - `app_goroutines` — текущее число горутин, индикатор насыщения (gauge).
+- Запускает фоновый генератор трафика: каждые 2 с отправляет запрос на `/work`, чтобы метрики и алерты обновлялись постоянно.
+
+Правила алертов задаются как **VMRule** (Custom Resource VictoriaMetrics) — манифест `chart/templates/vmrule.yaml`. VMRule применяется в кластер **вместе с установкой приложения** одним `helm upgrade --install golden-signal-app ./chart`, отдельного шага для алертов нет. vmalert автоматически подхватывает VMRule через `selectAllByDefault: true`.
+
+Правила алертов (группа `golden-signal-alerts`):
+
+| Алерт | Условие | For | Severity |
+|---|---|---|---|
+| `HighErrorRate` | `rate(app_errors_total[5m]) / rate(app_requests_total[5m]) > 0.05` | 1m | critical |
+| `HighLatency` | `histogram_quantile(0.95, sum(rate(app_request_latency_seconds_bucket[5m])) by (le)) > 0.5` | 2m | warning |
+| `HighGoroutineCount` | `app_goroutines > 50` | 1m | warning |
+
+Установка приложения и его правил алертов одной командой:
 
 ```bash
 helm upgrade --install golden-signal-app ./chart \
   --namespace golden-signal-app \
   --create-namespace
 ```
-
-> `image.repository` и `image.tag` уже заданы в [`chart/values.yaml`](chart/values.yaml) по умолчанию, `--set` не требуется.
 
 ### Проверка статуса развертывания
 
