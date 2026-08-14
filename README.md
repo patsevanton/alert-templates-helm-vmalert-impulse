@@ -12,7 +12,7 @@ Alertmanager — это stateless-«почтальон»: сгруппирова
 | Инцидент = отдельный топик форума Telegram (`createForumTopic`), все обновления в одном треде | ❌ нет (плоский поток сообщений в чат) | ✅ |
 | Интерактивные inline-кнопки Take It / Freeze с callback на `impulse_address` (HTTPS webhook) | ❌ нет | ✅ |
 | Жизненный цикл инцидента (new → ack/freeze → resolved) с синхронизацией состояния с топиком | ❌ нет (stateless по доставке: отправил и забыл) | ✅ |
-| Привязка Telegram-пользователей к admin-user'ам (`users.<name>.id = telegram_user_id`) для адресации действий кнопок конкретным людям | ❌ нет (чужая зона ответственности) | ✅ |
+| Привязка Telegram-пользователей к admin-user'ам (`users.<name>.id = telegram_user_id`) для эскалаций и упоминаний конкретным людям | ❌ нет (чужая зона ответственности) | ✅ |
 
 **Кратко:** Alertmanager здесь выступает только маршрутизатором-источником (`receiver: impulse` → webhook на Impulse). Всю работу с пользователем внутри Telegram — треды, кнопки, состояния инцидента, привязку людей — делает Impulse.
 
@@ -323,3 +323,26 @@ terraform output -raw grafana_admin_password_command | sh
 ```
 
 > sslip.io — бесплатный wildcard-DNS: `<anything>.<IP>.sslip.io` всегда резолвится в `<IP>`. Не требует делегирования доменной зоны.
+
+## Как работает привязка Telegram-пользователей в Impulse (`users.<name>.id` и `admin_users`)
+
+В `values/values-impulse.yaml.tftpl` секция `impulseConfig.messenger` содержит:
+
+```yaml
+admin_users: ["admin_user"]
+users:
+  admin_user:
+    id: "${telegram_user_id}"   # числовой Telegram user_id
+```
+
+**Назначение `users.<name>.id`** — это **числовой Telegram `user_id`** (положительное число). Используется **не для адресации кнопок callback**, а для:
+
+1. **Пред-регистрации пользователя в `UserManager`** Impulse — `user_id` становится первичным ключом, через Telegram API `getChat` подгружаются `full_name`/`username`. Без записи в `users` тоже работает: Impulse узнаёт пользователя при первом его действии через `from.id` из callback-пейлоада.
+2. **Адресации по имени в эскалационных цепочках** — chain-step `user: <config_name>` резолвится в `user_id` через `UserManager`.
+3. **`admin_users`** — список **имён (ключей из `users`)** (валидируется, что каждое имя есть в `users`). Администраторы упоминаются в текстах уведомлений как `tg://user?id=<id>` (фолбэк-канал для алертов и предупреждений).
+4. **Упоминаний в текстах** — `<a href="tg://user?id={{ id }}">` в шаблонах Impulse превращается в пуш-уведомление конкретному человеку в Telegram.
+5. **Обратного сопоставления `user_id → config_name`** — для refresh-задач и UI.
+
+> **Кнопки callback в Telegram не имеют адресации конкретному человеку.** Inline-кнопки (`Take It` / `Freeze` и т.п.) видны всем участникам группы, `callback_data` содержит только команду (`stop_chain`, `start_chain`, …) без `user_id`. В момент клика Telegram сам сообщает в callback-пейлоаде `from.id` нажавшего — Impulse привязывает инцидент к этому `user_id` уже в момент нажатия, а не из конфига.
+
+**`impulse_address`** (`https://impulse.<LB_IP>.sslip.io`) — это **публичный HTTPS-URL инстанса Impulse**, куда Telegram шлёт POST'ом все `callback_query` и сообщения (регистрируется через Telegram API `setWebhook` с `url = {impulse_address}/app`). Это транспортный endpoint для приёма callback'ов от Telegram, **не механизм адресации людям** — Telegram поддерживает webhook только по HTTPS, поэтому TLS обязателен.
