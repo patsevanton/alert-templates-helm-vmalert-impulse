@@ -61,13 +61,39 @@ vmcluster:
 alertmanager:
   enabled: true
   spec:
-    replicaCount: 1
+    # HA: 3 реплики. При replicaCount > 1 оператор VictoriaMetrics автоматически
+    # добавляет --cluster.listen-address и --cluster.peer=<sts>-N.<svc>:9094
+    # (Gossip-протокол), благодаря которому только одна из реплик отправляет
+    # уведомление, остальные его дропают. Impulse (webhook-ресивер) получит одно
+    # уведомление на инцидент, дублей не будет.
+    replicaCount: 3
     port: "9093"
     selectAllByDefault: true
     image:
       tag: v0.33.1
     externalURL: ""
     routePrefix: /
+    # PVC на реплику (StatefulSet). Gossip синхронизирует silences и nflog между
+    # репликами, но локальный storage ускоряет восстановление после рестарта и
+    # хранит silence history. network-ssd — стандартный storageClass Yandex Managed K8s.
+    storage:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: network-ssd
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 2Gi
+    # Распределяем 3 пода по разным нодам (кластер из 3 нод) — иначе scheduler
+    # может поставить их на одну ноду, что нивелирует HA при падении ноды.
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: DoNotSchedule
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: vmalertmanager-vmks
   config:
     route:
       receiver: "impulse"
