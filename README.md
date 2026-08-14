@@ -1,5 +1,21 @@
 # Шаблонизация правил алертов в Helm и их обработка через vmalert и Impulse для отправки в Telegram
 
+## Зачем Impulse, если есть Alertmanager
+
+Alertmanager — это stateless-«почтальон»: сгруппировал алерты, отправил в receiver (webhook/email/…), забыл. Состояния инцидента наружу он не экспортирует и интерактивности с пользователем не предоставляет. Impulse — это слой инцидент-менеджмента поверх Alertmanager: он принимает алерты как webhook-ресивер и превращает их в управляемые инциденты прямо внутри Telegram.
+
+| Возможность | Alertmanager | Impulse |
+|---|---|---|
+| Группировка и дедупликация алертов (`group_by`, `group_interval`, `repeat_interval`, `inhibit_rules`) | ✅ встроено | — (получает уже сгруппированные алерты от Alertmanager) |
+| Маршрутизация по receiver'ам через `route.routes` + `matchers` (severity/service/team → разные webhook'ы/чаты) | ✅ встроено | ✅ дополнительно через `impulseConfig.channels` + `route.channel` (разнесение по Telegram-чатам команд) |
+| HA (cluster mode, gossip-протокол) | ✅ встроено (`--cluster.*`) | ✅ собственный HA-режим с файловым локом (primary/standby, `/readyz` 503 у standby) |
+| Инцидент = отдельный топик форума Telegram (`createForumTopic`), все обновления в одном треде | ❌ нет (плоский поток сообщений в чат) | ✅ |
+| Интерактивные inline-кнопки Take It / Freeze с callback на `impulse_address` (HTTPS webhook) | ❌ нет | ✅ |
+| Жизненный цикл инцидента (new → ack/freeze → resolved) с синхронизацией состояния с топиком | ❌ нет (stateless по доставке: отправил и забыл) | ✅ |
+| Привязка Telegram-пользователей к admin-user'ам (`users.<name>.id = telegram_user_id`) для адресации действий кнопок конкретным людям | ❌ нет (чужая зона ответственности) | ✅ |
+
+**Кратко:** Alertmanager здесь выступает только маршрутизатором-источником (`receiver: impulse` → webhook на Impulse). Всю работу с пользователем внутри Telegram — треды, кнопки, состояния инцидента, привязку людей — делает Impulse.
+
 ## Цель статьи
 
 Показать, как отправлять и маршрутизировать алерты от двух сервисов разных команд в их собственные Telegram-чаты. На примере demo-приложения Golden Signal и стека VictoriaMetrics разбирается: шаблонизация правил алертов в Helm, маршрутизация алертов через vmalert + Alertmanager и доставка уведомлений в Telegram через Impulse с разнесением по чатам команд.
