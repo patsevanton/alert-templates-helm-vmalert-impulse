@@ -2,57 +2,11 @@
 
 Публичные имена сервисов формируются через **sslip.io** по схеме `<сервис>.<LB_IP>.sslip.io` — это бесплатный wildcard-DNS: `<anything>.<IP>.sslip.io` всегда резолвится в `<IP>`. Собственная DNS-зона не нужна. IP балансировщика ingress-nginx известен только после `terraform apply`, поэтому values-файлы рендерятся Terraform из шаблонов `values/*.tftpl` (через `local_file` в `k8s.tf`) с подстановкой реального IP.
 
+> **Перед шагами ниже** разверните инфраструктуру через Terraform и установите cert-manager — см. [INFRASTRUCTURE.md](INFRASTRUCTURE.md). Дальнейшие шаги предполагают, что кластер K8s работает, ingress-nginx слушает на публичном IP, cert-manager установлен, а ClusterIssuer `letsencrypt-prod` применён.
+
 ## Порядок развёртывания
 
-### 1. Terraform: инфраструктура и рендер values
-
-```bash
-terraform init
-terraform apply
-```
-
-После `apply` в `values/` появятся отрендеренные `vmks-values.yaml` и `values-impulse.yaml` с актуальными sslip.io-хостами. URL сервисов и IP балансировщика выводятся в `terraform output`:
-
-```bash
-terraform output lb_ip
-terraform output grafana_url
-terraform output vmselect_url
-terraform output alertmanager_url
-terraform output vmalert_url
-terraform output impulse_url
-terraform output grafana_admin_user
-terraform output grafana_admin_password_command
-```
-
-Доступ к кластеру:
-
-```bash
-$(terraform output -raw k8s_cluster_credentials_command)
-kubectl get nodes
-```
-
-### 2. cert-manager (TLS для ingress)
-
-Установка cert-manager для выпуска сертификатов Let's Encrypt через HTTP-01:
-
-```bash
-helm repo add jetstack https://charts.jetstack.io
-helm repo update
-helm upgrade --install cert-manager jetstack/cert-manager \
-  --namespace cert-manager \
-  --create-namespace \
-  --version v1.21.1 \
-  --set crds.enabled=true \
-  --wait
-```
-
-Примените ClusterIssuer после `terraform apply`:
-
-```bash
-kubectl apply -f cluster-issuer.yaml
-```
-
-### 3. VM K8s Stack (метрики, Grafana)
+### 1. VM K8s Stack (метрики, Grafana)
 
 Установка victoria-metrics-k8s-stack с Grafana. Values-файл уже сгенерирован Terraform с актуальным sslip.io-хостом и TLS-настройками ingress:
 
@@ -69,7 +23,7 @@ helm upgrade --install vmks \
 
 Шаблон values: [`values/vmks-values.yaml.tftpl`](values/vmks-values.yaml.tftpl) (рендерится в `values/vmks-values.yaml`).
 
-### 4. Установка приложения через Helm
+### 2. Установка приложения через Helm
 
 Для установки demo-приложения Golden Signal в Kubernetes-кластере используйте Helm:
 
@@ -95,7 +49,7 @@ curl http://localhost:8080/metrics
 curl http://localhost:8080/work
 ```
 
-### 5. Настройка Telegram-бота
+### 3. Настройка Telegram-бота
 
 Для отправки уведомлений в Telegram потребуется бот и три значения: `bot-token`, `telegram_chat_id`, `telegram_user_id`.
 
@@ -171,7 +125,7 @@ kubectl apply -f impulse-telegram-secret.yaml
 
 > Secret `impulse-telegram-secrets` в namespace `impulse` создаётся вручную через `kubectl apply -f impulse-telegram-secret.yaml` после `terraform apply`. Terraform не вызывает kubectl напрямую — это избегает ошибок доступа к API кластера во время `apply`. При смене `bot_token` в `terraform.tfvars` повторный `terraform apply` перегенерирует `impulse-telegram-secret.yaml`, после чего его нужно повторно применить `kubectl apply -f impulse-telegram-secret.yaml`.
 
-### 6. Установка Impulse
+### 4. Установка Impulse
 
 Для установки Impulse через Helm используйте следующие команды:
 
@@ -204,19 +158,3 @@ terraform output -raw grafana_admin_password_command | sh
 ```
 
 > sslip.io — бесплатный wildcard-DNS: `<anything>.<IP>.sslip.io` всегда резолвится в `<IP>`. Не требует делегирования доменной зоны.
-
-## Структура файлов
-
-| Файл | Описание |
-|------|----------|
-| [`versions.tf`](versions.tf) | Провайдеры Terraform (Yandex Cloud, Helm, Kubernetes, time, local, null), переменные `acme_email`, `telegram_chat_id`, `telegram_user_id`, `bot_token` |
-| `terraform.tfvars` | Значения переменных Terraform (`telegram_chat_id`, `telegram_user_id`, `bot_token`). **В `.gitignore`** — не коммитится, содержит чувствительные данные |
-| [`net.tf`](net.tf) | VPC-сеть, подсети, NAT-шлюз + route table для исходящего трафика из приватных подсетей |
-| [`ip-dns.tf`](ip-dns.tf) | Статический IP балансировщика (публичные имена через sslip.io, собственная DNS-зона не нужна) |
-| [`k8s.tf`](k8s.tf) | K8s-кластер, ноды, Helm-релиз ingress-nginx, рендер values из `.tftpl`, `terraform output` URL |
-| [`cluster-issuer.yaml.tftpl`](cluster-issuer.yaml.tftpl) | Шаблон ClusterIssuer Let's Encrypt (рендерится в `cluster-issuer.yaml`) |
-| [`impulse-telegram-secret.yaml.tftpl`](impulse-telegram-secret.yaml.tftpl) | Шаблон манифеста Secret `impulse-telegram-secrets` (рендерится в `impulse-telegram-secret.yaml`) |
-| [`values/vmks-values.yaml.tftpl`](values/vmks-values.yaml.tftpl) | Шаблон values victoria-metrics-k8s-stack (рендерится в `values/vmks-values.yaml`) |
-| [`values/values-impulse.yaml.tftpl`](values/values-impulse.yaml.tftpl) | Шаблон values Impulse (рендерится в `values/values-impulse.yaml`) |
-| [`chart/`](chart) | Helm-чарт demo-приложения Golden Signal (Deployment, Service, ServiceMonitor, VMRule) |
-| [`app/`](app) | Исходники demo-приложения (Go): генератор трафика + метрики Golden Signals (latency, errors, saturation) |
