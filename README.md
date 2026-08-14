@@ -1,8 +1,10 @@
 # Шаблонизация правил алертов в Helm и их обработка через vmalert и Impulse для отправки в Telegram
 
-Публичные имена сервисов формируются через **sslip.io** по схеме `<сервис>.<LB_IP>.sslip.io` — это бесплатный wildcard-DNS: `<anything>.<IP>.sslip.io` всегда резолвится в `<IP>`. Собственная DNS-зона не нужна. IP балансировщика ingress-nginx известен только после `terraform apply`, поэтому values-файлы рендерятся Terraform из шаблонов `values/*.tftpl` (через `local_file` в `k8s.tf`) с подстановкой реального IP.
+## Цель статьи
 
-> **Перед шагами ниже** разверните инфраструктуру через Terraform и установите cert-manager — см. [INFRASTRUCTURE.md](INFRASTRUCTURE.md). Дальнейшие шаги предполагают, что кластер K8s работает, ingress-nginx слушает на публичном IP, cert-manager установлен, а ClusterIssuer `letsencrypt-prod` применён.
+Показать, как отправлять и маршрутизировать алерты от двух сервисов разных команд в их собственные Telegram-чаты. На примере demo-приложения Golden Signal и стека VictoriaMetrics разбирается: шаблонизация правил алертов в Helm, маршрутизация алертов через vmalert + Alertmanager и доставка уведомлений в Telegram через Impulse с разнесением по чатам команд.
+
+> **Перед шагами ниже** разверните kubernetes и установите cert-manager. Дальнейшие шаги предполагают, что кластер K8s работает, ingress-nginx слушает на публичном IP, cert-manager установлен, а ClusterIssuer `letsencrypt-prod` применён.
 
 ## Порядок развёртывания
 
