@@ -34,6 +34,10 @@ kubeScheduler:
   enabled: false
 kubeEtcd:
   enabled: false
+# kube-state-metrics: разрешаем собирать все labels подов (metricLabelsAllowlist).
+# По умолчанию kube-state-metrics не экспортирует labels Pod-ов в своих метриках,
+# чтобы не раздувать кардинальность. Список pods=[*] включает все labels —
+# они нужны для правил алертов и маршрутизации (например, фильтрация по команде/сервису).
 kube-state-metrics:
   metricLabelsAllowlist:
     - pods=[*]
