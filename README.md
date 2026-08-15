@@ -1,5 +1,9 @@
 # Шаблонизация правил алертов в Helm и их обработка через vmalert и Impulse для отправки в Telegram
 
+## Цель статьи
+
+Показать, как отправлять и маршрутизировать алерты от двух сервисов разных команд в их собственные Telegram-чаты. На примере demo-приложения Golden Signal и стека VictoriaMetrics разбирается: шаблонизация правил алертов в Helm, маршрутизация алертов через vmalert + Alertmanager и доставка уведомлений в Telegram через Impulse с разнесением по чатам команд.
+
 ## Зачем Impulse, если есть Alertmanager
 
 Alertmanager — это stateless-«почтальон»: сгруппировал алерты, отправил в receiver (webhook/email/…), забыл. Состояния инцидента наружу он не экспортирует и интерактивности с пользователем не предоставляет. Impulse — это слой инцидент-менеджмента поверх Alertmanager: он принимает алерты как webhook-ресивер и превращает их в управляемые инциденты прямо внутри Telegram.
@@ -16,10 +20,6 @@ Alertmanager — это stateless-«почтальон»: сгруппирова
 
 **Кратко:** Alertmanager здесь выступает только маршрутизатором-источником (`receiver: impulse` → webhook на Impulse). Всю работу с пользователем внутри Telegram — треды, кнопки, состояния инцидента, привязку людей — делает Impulse.
 
-## Цель статьи
-
-Показать, как отправлять и маршрутизировать алерты от двух сервисов разных команд в их собственные Telegram-чаты. На примере demo-приложения Golden Signal и стека VictoriaMetrics разбирается: шаблонизация правил алертов в Helm, маршрутизация алертов через vmalert + Alertmanager и доставка уведомлений в Telegram через Impulse с разнесением по чатам команд.
-
 > **Перед шагами ниже** разверните kubernetes и установите cert-manager. Дальнейшие шаги предполагают, что кластер K8s работает, ingress-nginx слушает на публичном IP, cert-manager установлен, а ClusterIssuer `letsencrypt-prod` применён.
 
 ## Порядок развёртывания
@@ -28,130 +28,7 @@ Alertmanager — это stateless-«почтальон»: сгруппирова
 
 ```
 cat <<'EOF' >> values/vmks-values.yaml
----
-grafana:
-  ingress:
-    ingressClassName: nginx
-    enabled: true
-    hosts:
-      - grafana.mycompany.corp
-    annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "true"
-      cert-manager.io/cluster-issuer: letsencrypt-prod
-    tls:
-      - secretName: grafana-tls
-        hosts:
-          - grafana.mycompany.corp
-defaultRules:
-  groups:
-    etcd:
-      enabled: false
-    kubernetes-system-scheduler:
-      enabled: false
-    kubernetes-system-controller-manager:
-      enabled: false
-    # В Yandex Managed K8s kube-scheduler недоступен для скрейпинга,
-    # поэтому recording-правила группы kube-scheduler.rules не имеют данных
-    # и порождают шумный алерт RecordingRulesNoData.
-    kube-scheduler.rules:
-      enabled: false
-# Control-plane компоненты Yandex Managed K8s (kube-controller-manager, kube-scheduler,
-# kube-etcd) недоступны для скрейпинга — master управляемый и вне кластера.
-# Отключаем scrape-job, иначе vmagent плодит ScrapePoolHasNoTargets,
-# а vmalert — RecordingRulesNoData для пустых scrape-pool.
-kubeControllerManager:
-  enabled: false
-kubeScheduler:
-  enabled: false
-kubeEtcd:
-  enabled: false
-# kube-state-metrics: разрешаем собирать все labels подов (metricLabelsAllowlist).
-# По умолчанию kube-state-metrics не экспортирует labels Pod-ов в своих метриках,
-# чтобы не раздувать кардинальность. Список pods=[*] включает все labels —
-# они нужны для правил алертов и маршрутизации (например, фильтрация по команде/сервису).
-kube-state-metrics:
-  metricLabelsAllowlist:
-    - pods=[*]
-vmsingle:
-  enabled: true
-  spec:
-    # Демо без HA: 1 под VMSingle вместо VMCluster (vmstorage+vmselect+vminsert).
-    # VMSingle — единый процесс хранения+запроса, без репликации. PVC 20Gi RWO.
-    port: "8428"
-    retentionPeriod: "1"
-    replicaCount: 1
-    storage:
-      accessModes:
-        - ReadWriteOnce
-      resources:
-        requests:
-          storage: 20Gi
-  ingress:
-    enabled: true
-    ingressClassName: nginx
-    annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "true"
-      cert-manager.io/cluster-issuer: letsencrypt-prod
-    hosts:
-      - vmsingle.mycompany.corp
-    tls:
-      - secretName: vmsingle-tls
-        hosts:
-          - vmsingle.mycompany.corp
-alertmanager:
-  enabled: true
-  spec:
-    # Демо без HA: 1 реплика Alertmanager. Без Gossip-кластера (оператор при
-    # replicaCount=1 добавляет --cluster.listen-address=, кластер-режим выключен).
-    replicaCount: 1
-    port: "9093"
-    selectAllByDefault: true
-    image:
-      tag: v0.33.1
-    externalURL: ""
-    routePrefix: /
-  config:
-    route:
-      receiver: "impulse"
-      group_interval: 5m
-      repeat_interval: 354m
-      routes:
-        - receiver: "blackhole"
-          matchers:
-            - severity="none"
-    receivers:
-      - name: impulse
-        webhook_configs:
-          - url: 'http://my-impulse.impulse.svc.cluster.local:5000/'
-      - name: blackhole
-  ingress:
-    enabled: true
-    ingressClassName: nginx
-    hosts:
-      - alertmanager.mycompany.corp
-    annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "true"
-      cert-manager.io/cluster-issuer: letsencrypt-prod
-    tls:
-      - secretName: alertmanager-tls
-        hosts:
-          - alertmanager.mycompany.corp
-vmalert:
-  enabled: true
-  ingress:
-    enabled: true
-    ingressClassName: nginx
-    hosts:
-      - vmalert.mycompany.corp
-    annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "true"
-      cert-manager.io/cluster-issuer: letsencrypt-prod
-    path: "/"
-    pathType: Prefix
-    tls:
-      - secretName: vmalert-tls
-        hosts:
-          - vmalert.mycompany.corp
+# здесь values/vmks-values.yaml через EOF
 EOF
 ```
 
