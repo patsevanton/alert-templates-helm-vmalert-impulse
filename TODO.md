@@ -1,16 +1,23 @@
-# TODO: Эскалация в Impulse (chat → teamlead)
+# TODO: Эскалация и дежурства в Impulse
 
 ## Постановка
 
-Добавить в Impulse эскалационную цепочку: инцидент создаётся в чате команды → если никто не нажал **Take It** в течение 5 минут → teamlead тегается в чате инцидента. Clusterlead убран из сценария — его не будет.
+Добавить в Impulse эскалационные цепочки с дежурствами (schedule chains):
+- инцидент создаётся в чате команды;
+- в окно дежурства (будни 09:00–20:00, Asia/Omsk) дежурный тегается сразу, затем через 5 минут — teamlead;
+- вне окна дежурства (будни 20:00–09:00 и выходные) teamlead тегается через 5 минут (заменяет дежурного).
+
+Clusterlead убран из сценария — его не будет.
 
 ## Что нужно сделать
 
-- [ ] **Сделать второй Telegram-чат.** Сейчас в проекте один чат `incidents_default` (`${telegram_chat_id}`). Нужно добавить второй чат для команды `team-b` (`telegram_chat_id_b`), чтобы алерты расходились по чатам команд через `route.routes` + matchers по label `team=team-a` / `team=team-b`. Оба чата — супергруппы с включёнными Topics, бот — администратор с правом «Manage topics» (см. README, секция «Включение топиков»).
-- [x] **id teamlead.** Teamlead и devops-инженер — один и тот же человек. В конфиге Impulse объявляется двумя ключами (`team_a_teamlead` и `team_b_teamlead`) с одинаковым `id`, чтобы каждая цепочка ссылалась на «своего» teamlead по имени. Значение берётся из переменной Terraform `telegram_teamlead_id` (задаётся в `terraform.tfvars`).
+- [x] **Второй Telegram-чат.** Значение `telegram_chat_id_b` вписано в `terraform.tfvars`. Оба чата — супергруппы с включёнными Topics, бот — администратор с правом «Manage topics» (см. README, секция «Включение топиков»).
+- [x] **id teamlead.** Teamlead и devops-инженер — один и тот же человек. В конфиге Impulse объявляется двумя ключами (`team_a_teamlead` и `team_b_teamlead`) с одинаковым `id`. Значение берётся из переменной Terraform `telegram_teamlead_id` (задаётся в `terraform.tfvars`).
+- [x] **Дежурные.** Объявлены ключами `team_a_oncall` / `team_b_oncall` с `id` из `telegram_user_id` (те же люди, что и teamlead/admin_user). В окне дежурства дежурный тегается сразу при создании инцидента.
+- [x] **Расписание дежурств.** Schedule-chain с тайм-зоной `Asia/Omsk`: будни Mon–Fri 09:00, duration 11h → дежурный сразу + teamlead через 5m; fallback (вне окна) → teamlead через 5m.
 - [x] **Clusterlead не будет.** Из сценария эскалации исключён; шаг chain `clusterlead` не добавляется.
 
-## Планируемая конфигурация Impulse (`values/values-impulse.yaml.tftpl`)
+## Конфигурация Impulse (`values/values-impulse.yaml.tftpl`)
 
 ```yaml
 impulseConfig:
@@ -22,23 +29,53 @@ impulseConfig:
       admin_user:
         id: "${telegram_user_id}"
       team_a_teamlead:
-        id: "${telegram_teamlead_id}"   # один и тот же id на оба чата
+        id: "${telegram_teamlead_id}"
       team_b_teamlead:
         id: "${telegram_teamlead_id}"
+      team_a_oncall:
+        id: "${telegram_user_id}"
+      team_b_oncall:
+        id: "${telegram_user_id}"
     channels:
-      incidents_team_a:                 # чат №1 (team-a)
+      incidents_team_a:
         id: "${telegram_chat_id}"
-      incidents_team_b:                 # чат №2 (team-b)
+      incidents_team_b:
         id: "${telegram_chat_id_b}"
     chains:
       team_a_escalation:
-        - wait: 5m
-        - user: team_a_teamlead         # тег teamlead в чате инцидента
+        type: schedule
+        timezone: Asia/Omsk
+        schedule:
+          - matcher:
+              start_day_expr: dow
+              start_day_values: ["Mon", "Tue", "Wed", "Thu", "Fri"]
+              start_time: "09:00"
+              duration: 11h
+            steps:
+              - user: team_a_oncall
+              - wait: 5m
+              - user: team_a_teamlead
+          - steps:
+              - wait: 5m
+              - user: team_a_teamlead
       team_b_escalation:
-        - wait: 5m
-        - user: team_b_teamlead
+        type: schedule
+        timezone: Asia/Omsk
+        schedule:
+          - matcher:
+              start_day_expr: dow
+              start_day_values: ["Mon", "Tue", "Wed", "Thu", "Fri"]
+              start_time: "09:00"
+              duration: 11h
+            steps:
+              - user: team_b_oncall
+              - wait: 5m
+              - user: team_b_teamlead
+          - steps:
+              - wait: 5m
+              - user: team_b_teamlead
   route:
-    channel: "incidents_team_a"         # канал по умолчанию (fallback)
+    channel: "incidents_team_a"
     chain: "team_a_escalation"
     routes:
       - matchers:
@@ -53,11 +90,11 @@ impulseConfig:
 
 ## Связанные изменения в Terraform
 
-- [x] `versions.tf`: добавить переменные `telegram_chat_id_b` и `telegram_teamlead_id`.
-- [x] `k8s.tf` (`locals.impulse_values`): передать `telegram_chat_id_b` и `telegram_teamlead_id` в `templatefile`.
-- [ ] `terraform.tfvars`: указать реальное значение `telegram_chat_id_b` (id второго чата) и `telegram_teamlead_id`.
-- [x] `README.md`: обновить секцию «Настройка Telegram-бота» (получение id второго чата и id teamlead) и блок описания `users`/`chains`/`route`.
+- [x] `versions.tf`: переменные `telegram_chat_id_b` и `telegram_teamlead_id`.
+- [x] `k8s.tf` (`locals.impulse_values`): переменные передаются в `templatefile`.
+- [x] `terraform.tfvars`: значения `telegram_chat_id_b` и `telegram_teamlead_id` указаны.
+- [x] `README.md`: секция «Эскалация инцидентов и дежурства (schedule chains)» с описанием окна дежурства и fallback.
 
 ## Условие срабатывания эскалации
 
-«Никто не ответил» = никто не нажал кнопку **Take It** в течение 5 минут с момента создания инцидента. Нажатие **Take It** останавливает цепочку (`stops chain escalation`, см. `docs/content/concepts/incident.md` в Impulse). Шаг `user: teamlead` тегает teamlead в чате инцидента (упоминание через `tg://user?id=<id>` в шаблоне уведомления).
+«Никто не ответил» = никто не нажал кнопку **Take It** в течение 5 минут с момента создания инцидента. Нажатие **Take It** останавливает цепочку (`stops chain escalation`, см. `docs/content/concepts/incident.md` в Impulse). Шаг `user` тегает человека в чате инцидента (упоминание через `tg://user?id=<id>`).

@@ -354,6 +354,10 @@ users:
     id: "${telegram_teamlead_id}"      # числовой Telegram user_id teamlead
   team_b_teamlead:
     id: "${telegram_teamlead_id}"      # тот же id, что у team_a_teamlead
+  team_a_oncall:
+    id: "${telegram_user_id}"          # дежурный team-a (те же люди, что и teamlead/admin)
+  team_b_oncall:
+    id: "${telegram_user_id}"          # дежурный team-b
 ```
 
 **Назначение `users.<name>.id`** — это **числовой Telegram `user_id`** (положительное число). Используется **не для адресации кнопок callback**, а для:
@@ -364,33 +368,53 @@ users:
 4. **Упоминаний в текстах** — `<a href="tg://user?id={{ id }}">` в шаблонах Impulse превращается в пуш-уведомление конкретному человеку в Telegram.
 5. **Обратного сопоставления `user_id → config_name`** — для refresh-задач и UI.
 
-> Teamlead объявляется двумя ключами (`team_a_teamlead` и `team_b_teamlead`) с одинаковым `id`, чтобы каждая эскалационная цепочка ссылалась на «своего» teamlead по имени. Если teamlead один на обе команды — значения совпадают.
+> Teamlead объявляется двумя ключами (`team_a_teamlead` и `team_b_teamlead`) с одинаковым `id`, чтобы каждая эскалационная цепочка ссылалась на «своего» teamlead по имени. Если teamlead один на обе команды — значения совпадают. Аналогично объявлены дежурные (`team_a_oncall` / `team_b_oncall`) — те же люди, что и teamlead/admin_user.
 
 > **Кнопки callback в Telegram не имеют адресации конкретному человеку.** Inline-кнопки (`Take It` / `Freeze` и т.п.) видны всем участникам группы, `callback_data` содержит только команду (`stop_chain`, `start_chain`, …) без `user_id`. В момент клика Telegram сам сообщает в callback-пейлоаде `from.id` нажавшего — Impulse привязывает инцидент к этому `user_id` уже в момент нажатия, а не из конфига.
 
 **`impulse_address`** (`https://impulse.<LB_IP>.sslip.io`) — это **публичный HTTPS-URL инстанса Impulse**, куда Telegram шлёт POST'ом все `callback_query` и сообщения (регистрируется через Telegram API `setWebhook` с `url = {impulse_address}/app`). Это транспортный endpoint для приёма callback'ов от Telegram, **не механизм адресации людям** — Telegram поддерживает webhook только по HTTPS, поэтому TLS обязателен.
 
-## Эскалация инцидентов (chains)
+## Эскалация инцидентов и дежурства (schedule chains)
 
 Impulse поддерживает эскалационные цепочки — последовательность шагов уведомления, которая запускается при создании инцидента и останавливается, когда кто-то нажимает кнопку **Take It** (или замораживает инцидент **Freeze**). Пока никто не отреагировал, цепочка продолжает выполняться по расписанию шагов.
 
-В проекте настроены две цепочки — по одной на чат команды:
+В проекте цепочки реализованы как **schedule chains** — расписание дежурств с тайм-зоной `Asia/Omsk`:
+
+- **Будни 09:00–20:00** (окно дежурства, 11 часов): инцидент → тег дежурного сразу → wait 5m → тег teamlead.
+- **Вне окна** (будни 20:00–09:00 и выходные Сб/Вс): инцидент → wait 5m → тег teamlead (дежурного нет, teamlead заменяет дежурного).
 
 ```yaml
 chains:
   team_a_escalation:
-    - wait: 5m
-    - user: team_a_teamlead     # тег teamlead в чате инцидента team-a
+    type: schedule
+    timezone: Asia/Omsk
+    schedule:
+      # Будни 09:00–20:00: дежурный тегается сразу, затем через 5 минут — teamlead
+      - matcher:
+          start_day_expr: dow
+          start_day_values: ["Mon", "Tue", "Wed", "Thu", "Fri"]
+          start_time: "09:00"
+          duration: 11h
+        steps:
+          - user: team_a_oncall
+          - wait: 5m
+          - user: team_a_teamlead
+      # Вне окна дежурства (будни 20:00–09:00, выходные): только teamlead через 5 минут
+      - steps:
+          - wait: 5m
+          - user: team_a_teamlead
   team_b_escalation:
-    - wait: 5m
-    - user: team_b_teamlead     # тег teamlead в чате инцидента team-b
+    # аналогично для team-b (team_b_oncall, team_b_teamlead)
 ```
 
 **Логика:**
 
-1. Инцидент создаётся в чате команды (`incidents_team_a` или `incidents_team_b`) — все участники видят сообщение с кнопками Take It / Freeze.
-2. Если в течение **5 минут** никто не нажал **Take It** — срабатывает шаг `user: team_*_teamlead`: Impulse упоминает teamlead в чате инцидента (`tg://user?id=<id>` → push-уведомление в Telegram).
-3. Нажатие **Take It** в любой момент останавливает цепочку (`stops chain escalation`), teamlead не тегается.
+1. Инцидент создаётся в чате команды (`incidents_team_a` или `incidents_team_b`) — все участники видят сообщение с кнопками Take It / Freeze. Impulse оценивает матчеры schedule-chain сверху вниз, первый совпавший выбирает steps.
+2. **В окно дежурства** (будни 09:00–20:00): дежурный тегается сразу (`user: team_*_oncall` → `tg://user?id=<id>` → push-уведомление). Если в течение 5 минут никто не нажал **Take It** — тегается teamlead.
+3. **Вне окна дежурства**: teamlead тегается через 5 минут (дежурного нет, teamlead заменяет).
+4. Нажатие **Take It** в любой момент останавливает цепочку (`stops chain escalation`), teamlead не тегается.
+
+> Schedule-chain в Impulse поддерживает `dow` (день недели), `dom` (день месяца), `date` (точная дата) и modulus-выражения (`dow % 2` для чередования). Матчеры оцениваются сверху вниз, ветка без `matcher` — fallback (срабатывает, если ни один матчер не совпал). Подробнее — в [документации Impulse](https://eslupmi-community.github.io/impulse/config_file/#schedule-chains).
 
 > Шаг `user` упоминает пользователя в сообщении инцидента в текущем чате (не в личку). Для отправки в личные сообщения нужно, чтобы пользователь предварительно начал диалог с ботом (Telegram Bot API требует `/start` от пользователя перед отправкой ему сообщений).
 

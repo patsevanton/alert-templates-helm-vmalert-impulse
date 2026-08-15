@@ -17,18 +17,57 @@ impulseConfig:
         id: "${telegram_teamlead_id}"
       team_b_teamlead:
         id: "${telegram_teamlead_id}"
+      # Дежурные: teamlead и devops-инженер — один человек, объявляем двумя
+      # ключами, чтобы schedule-chain каждой команды ссылался на «своего»
+      # дежурного по имени. В будни 09:00–20:00 дежурный тегается сразу,
+      # далее через 5 минут — teamlead.
+      team_a_oncall:
+        id: "${telegram_user_id}"
+      team_b_oncall:
+        id: "${telegram_user_id}"
     channels:
       incidents_team_a:
         id: "${telegram_chat_id}"
       incidents_team_b:
         id: "${telegram_chat_id_b}"
     chains:
+      # Schedule-chain: будни 09:00–20:00 (Asia/Omsk) — чат → тег дежурного
+      # сразу → wait 5m → тег teamlead. Вне этого окна (будни 20:00–09:00 и
+      # выходные) — чат → wait 5m → тег teamlead (дежурного нет, teamlead
+      # заменяет дежурного). Матчеры оцениваются сверху вниз, первый
+      # совпавший выбирает steps. Ветка без matcher (последняя) — fallback.
       team_a_escalation:
-        - wait: 5m
-        - user: team_a_teamlead
+        type: schedule
+        timezone: Asia/Omsk
+        schedule:
+          - matcher:
+              start_day_expr: dow
+              start_day_values: ["Mon", "Tue", "Wed", "Thu", "Fri"]
+              start_time: "09:00"
+              duration: 11h
+            steps:
+              - user: team_a_oncall
+              - wait: 5m
+              - user: team_a_teamlead
+          - steps:
+              - wait: 5m
+              - user: team_a_teamlead
       team_b_escalation:
-        - wait: 5m
-        - user: team_b_teamlead
+        type: schedule
+        timezone: Asia/Omsk
+        schedule:
+          - matcher:
+              start_day_expr: dow
+              start_day_values: ["Mon", "Tue", "Wed", "Thu", "Fri"]
+              start_time: "09:00"
+              duration: 11h
+            steps:
+              - user: team_b_oncall
+              - wait: 5m
+              - user: team_b_teamlead
+          - steps:
+              - wait: 5m
+              - user: team_b_teamlead
   route:
     channel: "incidents_team_a"
     chain: "team_a_escalation"
