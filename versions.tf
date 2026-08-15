@@ -41,9 +41,9 @@ variable "telegram_chat_id" {
   description = "ID чата/группы Telegram команды team-a, куда будут отправляться алерты (отрицательное число для групп)"
 }
 
-variable "telegram_user_id" {
+variable "telegram_admin_id" {
   type        = string
-  description = "ID пользователя-администратора Telegram (положительное число)"
+  description = "ID пользователя-администратора Telegram (положительное число) — Telegram user_id devops-инженера (telegram_admin_id в impulse-конфиге)"
 }
 
 variable "telegram_teamlead_id" {

@@ -15,7 +15,7 @@ Terraform создаёт кластер Managed Kubernetes, статически
 шаблонов `values/*.tftpl` файлы `values/vmks-values.yaml`,
 `values/values-impulse.yaml`, `impulse-telegram-secret.yaml` и
 `cluster-issuer.yaml` с уже подставленным IP балансировщика и значениями
-переменных (`acme_email`, `telegram_chat_id`, `telegram_user_id`,
+переменных (`acme_email`, `telegram_chat_id`, `telegram_admin_id`,
 `bot_token`).
 
 ### Требования
@@ -32,7 +32,7 @@ Terraform создаёт кластер Managed Kubernetes, статически
 ```bash
 cat > terraform.tfvars <<'EOF'
 telegram_chat_id = "<ваш telegram_chat_id>"
-telegram_user_id = "<ваш telegram_user_id>"
+telegram_admin_id = "<ваш telegram_admin_id>"
 bot_token        = "<ваш bot-token вида 123456789:ABCdefGhI-jklMnoPQRstuVwxYZ>"
 EOF
 ```

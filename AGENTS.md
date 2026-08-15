@@ -10,7 +10,7 @@ Operational notes for working with this repo's infrastructure (Yandex Cloud + K8
 
 | Файл / каталог | Назначение |
 |---|---|
-| `versions.tf` | Провайдеры Terraform: `yandex`, `helm`, `time`, `local`, `null`. Переменные `acme_email`, `telegram_chat_id`, `telegram_user_id`, `bot_token` |
+| `versions.tf` | Провайдеры Terraform: `yandex`, `helm`, `time`, `local`, `null`. Переменные `acme_email`, `telegram_chat_id`, `telegram_admin_id`, `bot_token` |
 | `net.tf` | VPC-сеть `impulse`, 3 подсети (a/b/d), NAT-шлюз + route table для исходящего трафика из приватных подсетей (ноды без публичных IP) |
 | `ip-dns.tf` | Ресурс `yandex_vpc_address.addr` — статический публичный IP балансировщика ingress-nginx. DNS-зона не создаётся: имена формируются через sslip.io |
 | `k8s.tf` | K8s-кластер + node group (3 ноды, `nat=false`), `helm_release` ingress-nginx, `locals` + `local_file` для рендера values из `.tftpl` и манифеста Secret `impulse-telegram-secrets`, `output` для URL сервисов |

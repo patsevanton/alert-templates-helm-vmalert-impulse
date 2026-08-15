@@ -16,7 +16,7 @@ Alertmanager — это stateless-«почтальон»: сгруппирова
 | Инцидент = отдельный топик форума Telegram (`createForumTopic`), все обновления в одном треде | ❌ нет (плоский поток сообщений в чат) | ✅ |
 | Интерактивные inline-кнопки Take It / Freeze с callback на `impulse_address` (HTTPS webhook) | ❌ нет | ✅ |
 | Жизненный цикл инцидента (new → ack/freeze → resolved) с синхронизацией состояния с топиком | ❌ нет (stateless по доставке: отправил и забыл) | ✅ |
-| Привязка Telegram-пользователей к admin-user'ам (`users.<name>.id = telegram_user_id`) для эскалаций и упоминаний конкретным людям | ❌ нет (чужая зона ответственности) | ✅ |
+| Привязка Telegram-пользователей к admin-user'ам (`users.<name>.id = telegram_admin_id`) для эскалаций и упоминаний конкретным людям | ❌ нет (чужая зона ответственности) | ✅ |
 
 **Кратко:** Alertmanager здесь выступает только маршрутизатором-источником (`receiver: impulse` → webhook на Impulse). Всю работу с пользователем внутри Telegram — треды, кнопки, состояния инцидента, привязку людей — делает Impulse.
 
@@ -95,7 +95,7 @@ curl http://localhost:8080/work
 
 ### 3. Настройка Telegram-бота
 
-Для отправки уведомлений в Telegram потребуется бот и значения: `bot-token`, `telegram_chat_id` (чат team-a), `telegram_user_id`, `telegram_teamlead_id`, `telegram_support_oncall_id`.
+Для отправки уведомлений в Telegram потребуется бот и значения: `bot-token`, `telegram_chat_id` (чат team-a), `telegram_admin_id`, `telegram_teamlead_id`, `telegram_support_oncall_id`.
 
 #### Если у вас нет Telegram-бота
 
@@ -115,23 +115,23 @@ curl http://localhost:8080/work
 3. BotFather вернёт новый `bot-token` вида `123456789:ABCdefGhI-jklMnoPQRstuVwxYZ`
 4. Добавьте бота в чат команды (если ещё не добавлен)
 
-#### Получение `telegram_chat_id`, `telegram_user_id`, `telegram_teamlead_id`
+#### Получение `telegram_chat_id`, `telegram_admin_id`, `telegram_teamlead_id`
 
 1. Получите `telegram_chat_id` — ID чата/группы команды team-a, куда будут отправляться уведомления:
    - Добавьте бота [@myidbot](https://t.me/myidbot) в ваш чат/группу team-a
    - Отправьте сообщение `/getgroupid@myidbot` в чат/группу
    - Бот вернёт `Your group ID is: -xxxxx` — это и есть `telegram_chat_id`
-2. Получите `telegram_user_id` для администратора:
-   - Напишите боту [@userinfobot](https://t.me/userinfobot) в личные сообщения команду `/start`
-   - Бот вернёт ваш `id` — это и есть `telegram_user_id`
+2. Получите `telegram_admin_id` — Telegram `user_id` devops-инженера (администратора Impulse, `telegram_admin_id` в impulse-конфиге):
+   - Devops-инженер пишет боту [@userinfobot](https://t.me/userinfobot) в личные сообщения команду `/start`
+   - Бот вернёт `id` — это и есть `telegram_admin_id`
 3. Получите `telegram_teamlead_id` — Telegram `user_id` teamlead:
     - Teamlead пишет боту [@userinfobot](https://t.me/userinfobot) команду `/start` из своего аккаунта
     - Бот вернёт `id` teamlead — это и есть `telegram_teamlead_id`
-    - Если teamlead и администратор — один и тот же человек, `telegram_teamlead_id` совпадает с `telegram_user_id`
+    - Если teamlead и devops-инженер — один и тот же человек, `telegram_teamlead_id` совпадает с `telegram_admin_id`
 4. Получите `telegram_support_oncall_id` — Telegram `user_id` дежурного техподдержки (последняя ступень эскалации, тегается через 5 минут после teamlead, если никто не нажал **Take It**):
     - Дежурный техподдержки пишет боту [@userinfobot](https://t.me/userinfobot) команду `/start` из своего аккаунта
     - Бот вернёт `id` — это и есть `telegram_support_oncall_id`
-    - Если дежурный техподдержки и администратор — один и тот же человек, `telegram_support_oncall_id` совпадает с `telegram_user_id`
+    - Если дежурный техподдержки и devops-инженер — один и тот же человек, `telegram_support_oncall_id` совпадает с `telegram_admin_id`
 
 #### Включение топиков (форума) в группах Telegram
 
@@ -151,9 +151,9 @@ Impulse реализует инциденты в Telegram как **топики 
 ```bash
 cat > terraform.tfvars <<'EOF'
 telegram_chat_id           = "<ID чата team-a>"
-telegram_user_id           = "<ваш telegram_user_id>"
-telegram_teamlead_id       = "<telegram_user_id teamlead>"
-telegram_support_oncall_id = "<telegram_user_id дежурного техподдержки>"
+telegram_admin_id          = "<ваш telegram_admin_id>"
+telegram_teamlead_id       = "<telegram_admin_id teamlead>"
+telegram_support_oncall_id = "<telegram_admin_id дежурного техподдержки>"
 bot_token                  = "<ваш bot-token вида 123456789:ABCdefGhI-jklMnoPQRstuVwxYZ>"
 EOF
 ```
@@ -211,16 +211,16 @@ terraform output -raw grafana_admin_password_command | sh
 В `values/values-impulse.yaml.tftpl` секция `impulseConfig.messenger` содержит:
 
 ```yaml
-admin_users: ["admin_user"]
+admin_users: ["telegram_admin_id"]
 users:
-  admin_user:
-    id: "${telegram_user_id}"          # числовой Telegram user_id администратора
+  telegram_admin_id:
+    id: "${telegram_admin_id}"          # числовой Telegram user_id devops-инженера (администратора Impulse)
   team_a_teamlead:
     id: "${telegram_teamlead_id}"      # числовой Telegram user_id teamlead
   support_oncall:
     id: "${telegram_support_oncall_id}" # числовой Telegram user_id дежурного техподдержки
   team_a_oncall:
-    id: "${telegram_user_id}"          # дежурный team-a (те же люди, что и teamlead/admin)
+    id: "${telegram_admin_id}"          # дежурный team-a (те же люди, что и teamlead/admin)
 ```
 
 **Назначение `users.<name>.id`** — это **числовой Telegram `user_id`** (положительное число). Используется **не для адресации кнопок callback**, а для:
@@ -231,7 +231,7 @@ users:
 4. **Упоминаний в текстах** — `<a href="tg://user?id={{ id }}">` в шаблонах Impulse превращается в пуш-уведомление конкретному человеку в Telegram.
 5. **Обратного сопоставления `user_id → config_name`** — для refresh-задач и UI.
 
-> Teamlead объявляется ключом `team_a_teamlead`, на него ссылается эскалационная цепочка по имени. Аналогично объявлен дежурный `team_a_oncall` — тот же человек, что и teamlead/admin_user.
+> Teamlead объявляется ключом `team_a_teamlead`, на него ссылается эскалационная цепочка по имени. Аналогично объявлен дежурный `team_a_oncall` — тот же человек, что и teamlead/telegram_admin_id.
 
 > **Кнопки callback в Telegram не имеют адресации конкретному человеку.** Inline-кнопки (`Take It` / `Freeze` и т.п.) видны всем участникам группы, `callback_data` содержит только команду (`stop_chain`, `start_chain`, …) без `user_id`. В момент клика Telegram сам сообщает в callback-пейлоаде `from.id` нажавшего — Impulse привязывает инцидент к этому `user_id` уже в момент нажатия, а не из конфига.
 
@@ -328,10 +328,10 @@ flowchart TD
         CHATA["team-a chat<br/>incidents_team_a"]
     end
 
-    subgraph People["Люди (telegram_user_id / telegram_teamlead_id)"]
-        DEVOPS["devops<br/>admin_user<br/>TG ID: telegram_user_id"]
+    subgraph People["Люди (telegram_admin_id / telegram_teamlead_id)"]
+        DEVOPS["devops<br/>telegram_admin_id<br/>TG ID: telegram_admin_id"]
         TLA["teamlead-a<br/>TG ID: telegram_teamlead_id"]
-        ONCA["oncall-a<br/>TG ID: telegram_user_id"]
+        ONCA["oncall-a<br/>TG ID: telegram_admin_id"]
     end
 
     APPA --> VMALERT
@@ -374,7 +374,7 @@ flowchart TD
 - **Пунктирные** — упоминания/адресация: `tg://user?id=<id>` подсвечивает конкретным людям пуш в треде инцидента; кнопка `Take It` адресуется по `from.id` нажавшего (узнаётся в момент клика, не заранее).
 - **`admin_users`** получает `🔔 admins` только как фолбэк: если целевой пользователь из цепочки недостижим (`NotDefined`/`NotFound`) или инцидент перешёл в `unknown`.
 
-> В демо-инфраструктуре `oncall-a` и `admin_user` свернуты в один `telegram_user_id` (один физический аккаунт), а `teamlead-a` — это `telegram_teamlead_id`. Схема изображает их как отдельных людей; в проде каждому соответствует свой TG ID.
+> В демо-инфраструктуре `oncall-a` и `telegram_admin_id` свернуты в один `telegram_admin_id` (один физический аккаунт), а `teamlead-a` — это `telegram_teamlead_id`. Схема изображает их как отдельных людей; в проде каждому соответствует свой TG ID.
 
 ### Сценарии срабатывания фолбэка `🔔 admins`
 

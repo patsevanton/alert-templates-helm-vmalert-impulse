@@ -13,7 +13,7 @@ Clusterlead убран из сценария — его не будет.
 
 - [x] **Telegram-чат.** Значение `telegram_chat_id` вписано в `terraform.tfvars`. Чат — супергруппа с включёнными Topics, бот — администратор с правом «Manage topics» (см. README, секция «Включение топиков»).
 - [x] **id teamlead.** Teamlead и devops-инженер — один и тот же человек. В конфиге Impulse объявляется ключом `team_a_teamlead` со значением `id` из переменной Terraform `telegram_teamlead_id` (задаётся в `terraform.tfvars`).
-- [x] **Дежурный.** Объявлен ключом `team_a_oncall` с `id` из `telegram_user_id` (тот же человек, что и teamlead/admin_user). В окне дежурства дежурный тегается сразу при создании инцидента.
+- [x] **Дежурный.** Объявлен ключом `team_a_oncall` с `id` из `telegram_admin_id` (тот же человек, что и teamlead/telegram_admin_id). В окне дежурства дежурный тегается сразу при создании инцидента.
 - [x] **Расписание дежурств.** Schedule-chain с тайм-зоной `Asia/Omsk`: будни Mon–Fri 09:00, duration 11h → дежурный сразу + teamlead через 5m; fallback (вне окна) → teamlead через 5m.
 - [x] **Clusterlead не будет.** Из сценария эскалации исключён; шаг chain `clusterlead` не добавляется.
 
@@ -24,14 +24,14 @@ impulseConfig:
   messenger:
     type: "telegram"
     impulse_address: "https://impulse.${lb_ip}.sslip.io"
-    admin_users: ["admin_user"]
+    admin_users: ["telegram_admin_id"]
     users:
-      admin_user:
-        id: "${telegram_user_id}"
+      telegram_admin_id:
+        id: "${telegram_admin_id}"
       team_a_teamlead:
         id: "${telegram_teamlead_id}"
       team_a_oncall:
-        id: "${telegram_user_id}"
+        id: "${telegram_admin_id}"
     channels:
       incidents_team_a:
         id: "${telegram_chat_id}"
