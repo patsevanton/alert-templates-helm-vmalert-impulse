@@ -20,7 +20,8 @@ spec:
       for: 1m
       labels:
         severity: {{ .Values.alerts.errors.severity }}
-        app: golden-signal-app
+        app: golden-signal-app-{{ .Values.team }}
+        team: {{ .Values.team }}
       annotations:
         summary: "High error rate detected"
         description: "{{ .Values.alerts.errors.description }}. Error rate is {{ `{{ $value | humanize }}` }}"
@@ -34,7 +35,8 @@ spec:
       for: 2m
       labels:
         severity: {{ .Values.alerts.latency.severity }}
-        app: golden-signal-app
+        app: golden-signal-app-{{ .Values.team }}
+        team: {{ .Values.team }}
       annotations:
         summary: "High request latency detected"
         description: "{{ .Values.alerts.latency.description }}. P95 latency is {{ `{{ $value }}` }}s"
@@ -45,7 +47,8 @@ spec:
       for: 1m
       labels:
         severity: warning
-        app: golden-signal-app
+        app: golden-signal-app-{{ .Values.team }}
+        team: {{ .Values.team }}
       annotations:
         summary: "High number of goroutines detected"
         description: "Application has {{ `{{ $value }}` }} goroutines, indicating potential saturation"
