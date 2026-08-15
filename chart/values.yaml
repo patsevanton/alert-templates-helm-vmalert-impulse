@@ -10,8 +10,6 @@ service:
 
 replicaCount: 1
 
-team: team-a
-
 resources:
   limits:
     cpu: 100m
