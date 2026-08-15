@@ -96,7 +96,7 @@ curl http://localhost:8080/work
 
 ### 3. Настройка Telegram-бота
 
-Для отправки уведомлений в Telegram потребуется бот и значения: `bot-token`, `telegram_chat_id` (чат team-a), `telegram_chat_id_b` (чат team-b), `telegram_user_id`, `telegram_teamlead_id`.
+Для отправки уведомлений в Telegram потребуется бот и значения: `bot-token`, `telegram_chat_id` (чат team-a), `telegram_chat_id_b` (чат team-b), `telegram_user_id`, `telegram_teamlead_id`, `telegram_support_oncall_id`.
 
 #### Если у вас нет Telegram-бота
 
@@ -130,9 +130,13 @@ curl http://localhost:8080/work
    - Напишите боту [@userinfobot](https://t.me/userinfobot) в личные сообщения команду `/start`
    - Бот вернёт ваш `id` — это и есть `telegram_user_id`
 4. Получите `telegram_teamlead_id` — Telegram `user_id` teamlead:
-   - Teamlead пишет боту [@userinfobot](https://t.me/userinfobot) команду `/start` из своего аккаунта
-   - Бот вернёт `id` teamlead — это и есть `telegram_teamlead_id`
-   - Если teamlead и администратор — один и тот же человек, `telegram_teamlead_id` совпадает с `telegram_user_id`
+    - Teamlead пишет боту [@userinfobot](https://t.me/userinfobot) команду `/start` из своего аккаунта
+    - Бот вернёт `id` teamlead — это и есть `telegram_teamlead_id`
+    - Если teamlead и администратор — один и тот же человек, `telegram_teamlead_id` совпадает с `telegram_user_id`
+5. Получите `telegram_support_oncall_id` — Telegram `user_id` дежурного техподдержки (последняя ступень эскалации, тегается через 5 минут после teamlead, если никто не нажал **Take It**):
+    - Дежурный техподдержки пишет боту [@userinfobot](https://t.me/userinfobot) команду `/start` из своего аккаунта
+    - Бот вернёт `id` — это и есть `telegram_support_oncall_id`
+    - Если дежурный техподдержки и администратор — один и тот же человек, `telegram_support_oncall_id` совпадает с `telegram_user_id`
 
 #### Включение топиков (форума) в группах Telegram
 
@@ -156,11 +160,12 @@ Impulse реализует инциденты в Telegram как **топики 
 
 ```bash
 cat > terraform.tfvars <<'EOF'
-telegram_chat_id     = "<ID чата team-a>"
-telegram_chat_id_b   = "<ID чата team-b>"
-telegram_user_id     = "<ваш telegram_user_id>"
-telegram_teamlead_id = "<telegram_user_id teamlead>"
-bot_token            = "<ваш bot-token вида 123456789:ABCdefGhI-jklMnoPQRstuVwxYZ>"
+telegram_chat_id           = "<ID чата team-a>"
+telegram_chat_id_b         = "<ID чата team-b>"
+telegram_user_id           = "<ваш telegram_user_id>"
+telegram_teamlead_id       = "<telegram_user_id teamlead>"
+telegram_support_oncall_id = "<telegram_user_id дежурного техподдержки>"
+bot_token                  = "<ваш bot-token вида 123456789:ABCdefGhI-jklMnoPQRstuVwxYZ>"
 EOF
 ```
 
@@ -227,6 +232,8 @@ users:
     id: "${telegram_teamlead_id}"      # числовой Telegram user_id teamlead
   team_b_teamlead:
     id: "${telegram_teamlead_id}"      # тот же id, что у team_a_teamlead
+  support_oncall:
+    id: "${telegram_support_oncall_id}" # числовой Telegram user_id дежурного техподдержки
   team_a_oncall:
     id: "${telegram_user_id}"          # дежурный team-a (те же люди, что и teamlead/admin)
   team_b_oncall:
@@ -251,18 +258,28 @@ users:
 
 Impulse поддерживает эскалационные цепочки — последовательность шагов уведомления, которая запускается при создании инцидента и останавливается, когда кто-то нажимает кнопку **Take It** (или замораживает инцидент **Freeze**). Пока никто не отреагировал, цепочка продолжает выполняться по расписанию шагов.
 
-В проекте цепочки реализованы как **schedule chains** — расписание дежурств с тайм-зоной `Asia/Omsk`:
+В проекте цепочки реализованы как **schedule chains** — расписание дежурств с тайм-зоной `Asia/Omsk`. Последней ступенью каждой цепочки вызывается вложенная schedule-chain `support_escalation` — тегается дежурный техподдержки (24/7, без матчеров, одна fallback-ветка с шагом `user: support_oncall`).
 
-- **Будни 09:00–20:00** (окно дежурства, 11 часов): инцидент → тег дежурного сразу → wait 5m → тег teamlead.
-- **Вне окна** (будни 20:00–09:00 и выходные Сб/Вс): инцидент → wait 5m → тег teamlead (дежурного нет, teamlead заменяет дежурного).
+- **Будни 09:00–20:00** (окно дежурства, 11 часов): инцидент → тег дежурного сразу → wait 5m → тег teamlead → wait 5m → тег support_oncall.
+- **Вне окна** (будни 20:00–09:00 и выходные Сб/Вс): инцидент → wait 5m → тег teamlead → wait 5m → тег support_oncall.
 
 ```yaml
 chains:
+  support_escalation:
+    # Вложенная schedule-chain дежурного техподдержки — 24/7, без матчеров
+    # (одна fallback-ветка). Тегает support_oncall в текущем чате инцидента.
+    # Вызывается как шаг `chain: support_escalation` в team_a_escalation /
+    # team_b_escalation после teamlead.
+    type: schedule
+    timezone: Asia/Omsk
+    schedule:
+      - steps:
+          - user: support_oncall
   team_a_escalation:
     type: schedule
     timezone: Asia/Omsk
     schedule:
-      # Будни 09:00–20:00: дежурный тегается сразу, затем через 5 минут — teamlead
+      # Будни 09:00–20:00: дежурный → teamlead через 5m → support_oncall через 5m
       - matcher:
           start_day_expr: dow
           start_day_values: ["Mon", "Tue", "Wed", "Thu", "Fri"]
@@ -272,20 +289,26 @@ chains:
           - user: team_a_oncall
           - wait: 5m
           - user: team_a_teamlead
-      # Вне окна дежурства (будни 20:00–09:00, выходные): только teamlead через 5 минут
+          - wait: 5m
+          - chain: support_escalation
+      # Вне окна дежурства (будни 20:00–09:00, выходные): teamlead через 5m → support_oncall через 5m
       - steps:
           - wait: 5m
           - user: team_a_teamlead
+          - wait: 5m
+          - chain: support_escalation
   team_b_escalation:
-    # аналогично для team-b (team_b_oncall, team_b_teamlead)
+    # аналогично для team-b (team_b_oncall, team_b_teamlead, chain: support_escalation)
 ```
 
 **Логика:**
 
 1. Инцидент создаётся в чате команды (`incidents_team_a` или `incidents_team_b`) — все участники видят сообщение с кнопками Take It / Freeze. Impulse оценивает матчеры schedule-chain сверху вниз, первый совпавший выбирает steps.
-2. **В окно дежурства** (будни 09:00–20:00): дежурный тегается сразу (`user: team_*_oncall` → `tg://user?id=<id>` → push-уведомление). Если в течение 5 минут никто не нажал **Take It** — тегается teamlead.
-3. **Вне окна дежурства**: teamlead тегается через 5 минут (дежурного нет, teamlead заменяет).
-4. Нажатие **Take It** в любой момент останавливает цепочку (`stops chain escalation`), teamlead не тегается.
+2. **В окно дежурства** (будни 09:00–20:00): дежурный тегается сразу (`user: team_*_oncall` → `tg://user?id=<id>` → push-уведомление). Если в течение 5 минут никто не нажал **Take It** — тегается teamlead. Если и через 5 минут после teamlead никто не взял — тегается дежурный техподдержки (`chain: support_escalation` → `user: support_oncall`).
+3. **Вне окна дежурства**: teamlead тегается через 5 минут (дежурного нет, teamlead заменяет), ещё через 5 минут — дежурный техподдержки.
+4. Нажатие **Take It** в любой момент останавливает цепочку (`stops chain escalation` — support_oncall не тегается, если инцидент уже взяли в работу).
+
+> **support_oncall тегается в ТОМ ЖЕ чате инцидента** (`incidents_team_a` / `incidents_team_b`), отдельного чата техподдержки нет. Impulse не поддерживает шаг `channel` в schedule-chain (шаги только `user`/`user_group`/`group`/`webhook`/`chain`/`wait`), а шаг `user` постит в текущий чат инцидента, не создаёт новый инцидент в другом канале.
 
 > Schedule-chain в Impulse поддерживает `dow` (день недели), `dom` (день месяца), `date` (точная дата) и modulus-выражения (`dow % 2` для чередования). Матчеры оцениваются сверху вниз, ветка без `matcher` — fallback (срабатывает, если ни один матчер не совпал). Подробнее — в [документации Impulse](https://eslupmi-community.github.io/impulse/config_file/#schedule-chains).
 

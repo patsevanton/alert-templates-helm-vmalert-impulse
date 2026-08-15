@@ -17,10 +17,17 @@ impulseConfig:
         id: "${telegram_teamlead_id}"
       team_b_teamlead:
         id: "${telegram_teamlead_id}"
+      # Дежурный техподдержки — последняя ступень эскалации: тегается через
+      # 5 минут после teamlead, если никто не нажал Take It. Тегается в ТОМ ЖЕ
+      # чате инцидента (incidents_team_a / incidents_team_b), отдельного чата
+      # техподдержки нет — Impulse не умеет создавать инцидент в другом канале
+      # из schedule-chain (шага channel нет, шаг user постит в текущий чат).
+      support_oncall:
+        id: "${telegram_support_oncall_id}"
       # Дежурные: teamlead и devops-инженер — один человек, объявляем двумя
       # ключами, чтобы schedule-chain каждой команды ссылался на «своего»
       # дежурного по имени. В будни 09:00–20:00 дежурный тегается сразу,
-      # далее через 5 минут — teamlead.
+      # далее через 5 минут — teamlead, ещё через 5 минут — support_oncall.
       team_a_oncall:
         id: "${telegram_user_id}"
       team_b_oncall:
@@ -32,10 +39,24 @@ impulseConfig:
         id: "${telegram_chat_id_b}"
     chains:
       # Schedule-chain: будни 09:00–20:00 (Asia/Omsk) — чат → тег дежурного
-      # сразу → wait 5m → тег teamlead. Вне этого окна (будни 20:00–09:00 и
-      # выходные) — чат → wait 5m → тег teamlead (дежурного нет, teamlead
-      # заменяет дежурного). Матчеры оцениваются сверху вниз, первый
-      # совпавший выбирает steps. Ветка без matcher (последняя) — fallback.
+      # сразу → wait 5m → тег teamlead → wait 5m → тег support_oncall (дежурный
+      # техподдержки). Вне этого окна (будни 20:00–09:00 и выходные) — чат →
+      # wait 5m → тег teamlead → wait 5m → тег support_oncall. support_oncall —
+      # последняя ступень, тегается в текущем чате инцидента, если teamlead
+      # не нажал Take It в течение 5 минут. Матчеры оцениваются сверху вниз,
+      # первый совпавший выбирает steps. Ветка без matcher (последняя) —
+      # fallback. support_escalation — общая schedule-chain техподдержки
+      # (24/7, одна fallback-ветка), вызывается через шаг chain после teamlead.
+      support_escalation:
+        # Вложенная schedule-chain дежурного техподдержки — 24/7, без
+        # матчеров (одна fallback-ветка). Тегает support_oncall в текущем
+        # чате инцидента. Вызывается как шаг `chain: support_escalation`
+        # в team_a_escalation / team_b_escalation после teamlead.
+        type: schedule
+        timezone: Asia/Omsk
+        schedule:
+          - steps:
+              - user: support_oncall
       team_a_escalation:
         type: schedule
         timezone: Asia/Omsk
@@ -49,9 +70,13 @@ impulseConfig:
               - user: team_a_oncall
               - wait: 5m
               - user: team_a_teamlead
+              - wait: 5m
+              - chain: support_escalation
           - steps:
               - wait: 5m
               - user: team_a_teamlead
+              - wait: 5m
+              - chain: support_escalation
       team_b_escalation:
         type: schedule
         timezone: Asia/Omsk
@@ -65,9 +90,13 @@ impulseConfig:
               - user: team_b_oncall
               - wait: 5m
               - user: team_b_teamlead
+              - wait: 5m
+              - chain: support_escalation
           - steps:
               - wait: 5m
               - user: team_b_teamlead
+              - wait: 5m
+              - chain: support_escalation
   route:
     channel: "incidents_team_a"
     chain: "team_a_escalation"

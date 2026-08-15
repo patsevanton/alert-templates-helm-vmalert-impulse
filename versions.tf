@@ -56,6 +56,11 @@ variable "telegram_teamlead_id" {
   description = "ID пользователя-teamlead Telegram (положительное число). Teamlead и devops-инженер — один и тот же человек, на оба чата используется один id"
 }
 
+variable "telegram_support_oncall_id" {
+  type        = string
+  description = "ID пользователя-дежурного техподдержки Telegram (положительное число). Тегается последней ступенью schedule-chain, если teamlead не нажал Take It в течение 5 минут"
+}
+
 # Токен Telegram-бота. Чувствительные данные — не выводится в terraform output и
 # не попадает в git (terraform.tfvars в .gitignore). Используется для создания
 # Secret impulse-telegram-secrets в namespace impulse через kubectl (null_resource),
