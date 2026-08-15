@@ -41,11 +41,6 @@ variable "telegram_chat_id" {
   description = "ID чата/группы Telegram команды team-a, куда будут отправляться алерты (отрицательное число для групп)"
 }
 
-variable "telegram_chat_id_b" {
-  type        = string
-  description = "ID чата/группы Telegram команды team-b, куда будут отправляться алерты (отрицательное число для групп)"
-}
-
 variable "telegram_user_id" {
   type        = string
   description = "ID пользователя-администратора Telegram (положительное число)"

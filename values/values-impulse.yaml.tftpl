@@ -15,28 +15,21 @@ impulseConfig:
         id: "${telegram_user_id}"
       team_a_teamlead:
         id: "${telegram_teamlead_id}"
-      team_b_teamlead:
-        id: "${telegram_teamlead_id}"
       # Дежурный техподдержки — последняя ступень эскалации: тегается через
       # 5 минут после teamlead, если никто не нажал Take It. Тегается в ТОМ ЖЕ
-      # чате инцидента (incidents_team_a / incidents_team_b), отдельного чата
-      # техподдержки нет — Impulse не умеет создавать инцидент в другом канале
-      # из schedule-chain (шага channel нет, шаг user постит в текущий чат).
+      # чате инцидента (incidents_team_a), отдельного чата техподдержки нет —
+      # Impulse не умеет создавать инцидент в другом канале из schedule-chain
+      # (шага channel нет, шаг user постит в текущий чат).
       support_oncall:
         id: "${telegram_support_oncall_id}"
-      # Дежурные: teamlead и devops-инженер — один человек, объявляем двумя
-      # ключами, чтобы schedule-chain каждой команды ссылался на «своего»
-      # дежурного по имени. В будни 09:00–20:00 дежурный тегается сразу,
-      # далее через 5 минут — teamlead, ещё через 5 минут — support_oncall.
+      # Дежурный: teamlead и devops-инженер — один человек. В будни 09:00–20:00
+      # дежурный тегается сразу, далее через 5 минут — teamlead, ещё через 5
+      # минут — support_oncall.
       team_a_oncall:
-        id: "${telegram_user_id}"
-      team_b_oncall:
         id: "${telegram_user_id}"
     channels:
       incidents_team_a:
         id: "${telegram_chat_id}"
-      incidents_team_b:
-        id: "${telegram_chat_id_b}"
     chains:
       # Schedule-chain: будни 09:00–20:00 (Asia/Omsk) — чат → тег дежурного
       # сразу → wait 5m → тег teamlead → wait 5m → тег support_oncall (дежурный
@@ -51,7 +44,7 @@ impulseConfig:
         # Вложенная schedule-chain дежурного техподдержки — 24/7, без
         # матчеров (одна fallback-ветка). Тегает support_oncall в текущем
         # чате инцидента. Вызывается как шаг `chain: support_escalation`
-        # в team_a_escalation / team_b_escalation после teamlead.
+        # в team_a_escalation после teamlead.
         type: schedule
         timezone: Asia/Omsk
         schedule:
@@ -77,38 +70,9 @@ impulseConfig:
               - user: team_a_teamlead
               - wait: 5m
               - chain: support_escalation
-      team_b_escalation:
-        type: schedule
-        timezone: Asia/Omsk
-        schedule:
-          - matcher:
-              start_day_expr: dow
-              start_day_values: ["Mon", "Tue", "Wed", "Thu", "Fri"]
-              start_time: "09:00"
-              duration: 11h
-            steps:
-              - user: team_b_oncall
-              - wait: 5m
-              - user: team_b_teamlead
-              - wait: 5m
-              - chain: support_escalation
-          - steps:
-              - wait: 5m
-              - user: team_b_teamlead
-              - wait: 5m
-              - chain: support_escalation
   route:
     channel: "incidents_team_a"
     chain: "team_a_escalation"
-    routes:
-      - matchers:
-          - team="team-a"
-        channel: "incidents_team_a"
-        chain: "team_a_escalation"
-      - matchers:
-          - team="team-b"
-        channel: "incidents_team_b"
-        chain: "team_b_escalation"
 
 secrets:
   existing:

@@ -2,7 +2,7 @@
 
 ## Постановка
 
-Добавить в Impulse эскалационные цепочки с дежурствами (schedule chains):
+Добавить в Impulse эскалационную цепочку с дежурствами (schedule chain):
 - инцидент создаётся в чате команды;
 - в окно дежурства (будни 09:00–20:00, Asia/Omsk) дежурный тегается сразу, затем через 5 минут — teamlead;
 - вне окна дежурства (будни 20:00–09:00 и выходные) teamlead тегается через 5 минут (заменяет дежурного).
@@ -11,9 +11,9 @@ Clusterlead убран из сценария — его не будет.
 
 ## Что нужно сделать
 
-- [x] **Второй Telegram-чат.** Значение `telegram_chat_id_b` вписано в `terraform.tfvars`. Оба чата — супергруппы с включёнными Topics, бот — администратор с правом «Manage topics» (см. README, секция «Включение топиков»).
-- [x] **id teamlead.** Teamlead и devops-инженер — один и тот же человек. В конфиге Impulse объявляется двумя ключами (`team_a_teamlead` и `team_b_teamlead`) с одинаковым `id`. Значение берётся из переменной Terraform `telegram_teamlead_id` (задаётся в `terraform.tfvars`).
-- [x] **Дежурные.** Объявлены ключами `team_a_oncall` / `team_b_oncall` с `id` из `telegram_user_id` (те же люди, что и teamlead/admin_user). В окне дежурства дежурный тегается сразу при создании инцидента.
+- [x] **Telegram-чат.** Значение `telegram_chat_id` вписано в `terraform.tfvars`. Чат — супергруппа с включёнными Topics, бот — администратор с правом «Manage topics» (см. README, секция «Включение топиков»).
+- [x] **id teamlead.** Teamlead и devops-инженер — один и тот же человек. В конфиге Impulse объявляется ключом `team_a_teamlead` со значением `id` из переменной Terraform `telegram_teamlead_id` (задаётся в `terraform.tfvars`).
+- [x] **Дежурный.** Объявлен ключом `team_a_oncall` с `id` из `telegram_user_id` (тот же человек, что и teamlead/admin_user). В окне дежурства дежурный тегается сразу при создании инцидента.
 - [x] **Расписание дежурств.** Schedule-chain с тайм-зоной `Asia/Omsk`: будни Mon–Fri 09:00, duration 11h → дежурный сразу + teamlead через 5m; fallback (вне окна) → teamlead через 5m.
 - [x] **Clusterlead не будет.** Из сценария эскалации исключён; шаг chain `clusterlead` не добавляется.
 
@@ -30,17 +30,11 @@ impulseConfig:
         id: "${telegram_user_id}"
       team_a_teamlead:
         id: "${telegram_teamlead_id}"
-      team_b_teamlead:
-        id: "${telegram_teamlead_id}"
       team_a_oncall:
-        id: "${telegram_user_id}"
-      team_b_oncall:
         id: "${telegram_user_id}"
     channels:
       incidents_team_a:
         id: "${telegram_chat_id}"
-      incidents_team_b:
-        id: "${telegram_chat_id_b}"
     chains:
       team_a_escalation:
         type: schedule
@@ -58,41 +52,16 @@ impulseConfig:
           - steps:
               - wait: 5m
               - user: team_a_teamlead
-      team_b_escalation:
-        type: schedule
-        timezone: Asia/Omsk
-        schedule:
-          - matcher:
-              start_day_expr: dow
-              start_day_values: ["Mon", "Tue", "Wed", "Thu", "Fri"]
-              start_time: "09:00"
-              duration: 11h
-            steps:
-              - user: team_b_oncall
-              - wait: 5m
-              - user: team_b_teamlead
-          - steps:
-              - wait: 5m
-              - user: team_b_teamlead
   route:
     channel: "incidents_team_a"
     chain: "team_a_escalation"
-    routes:
-      - matchers:
-          - team="team-a"
-        channel: "incidents_team_a"
-        chain: "team_a_escalation"
-      - matchers:
-          - team="team-b"
-        channel: "incidents_team_b"
-        chain: "team_b_escalation"
 ```
 
 ## Связанные изменения в Terraform
 
-- [x] `versions.tf`: переменные `telegram_chat_id_b` и `telegram_teamlead_id`.
+- [x] `versions.tf`: переменные `telegram_chat_id` и `telegram_teamlead_id`.
 - [x] `k8s.tf` (`locals.impulse_values`): переменные передаются в `templatefile`.
-- [x] `terraform.tfvars`: значения `telegram_chat_id_b` и `telegram_teamlead_id` указаны.
+- [x] `terraform.tfvars`: значения `telegram_chat_id` и `telegram_teamlead_id` указаны.
 - [x] `README.md`: секция «Эскалация инцидентов и дежурства (schedule chains)» с описанием окна дежурства и fallback.
 
 ## Условие срабатывания эскалации
