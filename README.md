@@ -206,8 +206,6 @@ URL формируются через sslip.io из публичного IP ба
 terraform output -raw grafana_admin_password_command | sh
 ```
 
-> sslip.io — бесплатный wildcard-DNS: `<anything>.<IP>.sslip.io` всегда резолвится в `<IP>`. Не требует делегирования доменной зоны.
-
 ## Как работает привязка Telegram-пользователей в Impulse (`users.<name>.id` и `admin_users`)
 
 В `values/values-impulse.yaml.tftpl` секция `impulseConfig.messenger` содержит:
