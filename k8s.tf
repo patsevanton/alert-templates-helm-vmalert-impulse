@@ -151,9 +151,11 @@ locals {
   })
 
   impulse_values = templatefile("${path.module}/values/values-impulse.yaml.tftpl", {
-    lb_ip            = local.lb_ip
-    telegram_chat_id = var.telegram_chat_id
-    telegram_user_id = var.telegram_user_id
+    lb_ip                = local.lb_ip
+    telegram_chat_id     = var.telegram_chat_id
+    telegram_chat_id_b   = var.telegram_chat_id_b
+    telegram_user_id     = var.telegram_user_id
+    telegram_teamlead_id = var.telegram_teamlead_id
   })
 
   cluster_issuer = templatefile("${path.module}/cluster-issuer.yaml.tftpl", {

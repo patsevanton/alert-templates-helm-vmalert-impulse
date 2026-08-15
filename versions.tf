@@ -38,12 +38,22 @@ variable "acme_email" {
 
 variable "telegram_chat_id" {
   type        = string
-  description = "ID чата/группы Telegram, куда будут отправляться алерты (отрицательное число для групп)"
+  description = "ID чата/группы Telegram команды team-a, куда будут отправляться алерты (отрицательное число для групп)"
+}
+
+variable "telegram_chat_id_b" {
+  type        = string
+  description = "ID чата/группы Telegram команды team-b, куда будут отправляться алерты (отрицательное число для групп)"
 }
 
 variable "telegram_user_id" {
   type        = string
   description = "ID пользователя-администратора Telegram (положительное число)"
+}
+
+variable "telegram_teamlead_id" {
+  type        = string
+  description = "ID пользователя-teamlead Telegram (положительное число). Teamlead и devops-инженер — один и тот же человек, на оба чата используется один id"
 }
 
 # Токен Telegram-бота. Чувствительные данные — не выводится в terraform output и

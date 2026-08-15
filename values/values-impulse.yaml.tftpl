@@ -13,12 +13,34 @@ impulseConfig:
     users:
       admin_user:
         id: "${telegram_user_id}"
+      team_a_teamlead:
+        id: "${telegram_teamlead_id}"
+      team_b_teamlead:
+        id: "${telegram_teamlead_id}"
     channels:
-      incidents_default:
+      incidents_team_a:
         id: "${telegram_chat_id}"
-
+      incidents_team_b:
+        id: "${telegram_chat_id_b}"
+    chains:
+      team_a_escalation:
+        - wait: 5m
+        - user: team_a_teamlead
+      team_b_escalation:
+        - wait: 5m
+        - user: team_b_teamlead
   route:
-    channel: "incidents_default"
+    channel: "incidents_team_a"
+    chain: "team_a_escalation"
+    routes:
+      - matchers:
+          - team="team-a"
+        channel: "incidents_team_a"
+        chain: "team_a_escalation"
+      - matchers:
+          - team="team-b"
+        channel: "incidents_team_b"
+        chain: "team_b_escalation"
 
 secrets:
   existing:
