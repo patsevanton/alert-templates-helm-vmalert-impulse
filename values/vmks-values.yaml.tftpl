@@ -42,19 +42,6 @@ kube-state-metrics:
   metricLabelsAllowlist:
     - pods=[*]
 vmsingle:
-  enabled: true
-  spec:
-    # Демо без HA: 1 под VMSingle вместо VMCluster (vmstorage+vmselect+vminsert).
-    # VMSingle — единый процесс хранения+запроса, без репликации. PVC 20Gi RWO.
-    port: "8428"
-    retentionPeriod: "1"
-    replicaCount: 1
-    storage:
-      accessModes:
-        - ReadWriteOnce
-      resources:
-        requests:
-          storage: 20Gi
   ingress:
     enabled: true
     ingressClassName: nginx
@@ -68,17 +55,9 @@ vmsingle:
         hosts:
           - vmsingle.${lb_ip}.sslip.io
 alertmanager:
-  enabled: true
   spec:
-    # Демо без HA: 1 реплика Alertmanager. Без Gossip-кластера (оператор при
-    # replicaCount=1 добавляет --cluster.listen-address=, кластер-режим выключен).
-    replicaCount: 1
-    port: "9093"
-    selectAllByDefault: true
     image:
       tag: v0.33.1
-    externalURL: ""
-    routePrefix: /
   config:
     route:
       receiver: "impulse"
@@ -106,7 +85,6 @@ alertmanager:
         hosts:
           - alertmanager.${lb_ip}.sslip.io
 vmalert:
-  enabled: true
   ingress:
     enabled: true
     ingressClassName: nginx
