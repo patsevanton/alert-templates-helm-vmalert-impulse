@@ -1,11 +1,13 @@
 # Схема адресации инцидентов в Telegram
 
-Сценарий: 2 сервиса (`golden-signal-app` с `team=team-a` и `team=team-b`, helm-чарт ставится дважды) → 2 команды разработки (teamlead + developer) + 2 чата команд в Telegram.
+Сценарий: 2 сервиса (`golden-signal-app` с `team=team-a` и `team=team-b`) → 2 команды разработки (teamlead + developer) + 2 чата команд в Telegram.
 
 ```mermaid
 flowchart TD
-    APPA["app-team-a<br/>label: team=team-a<br/>метрики app_*"]
-    APPB["app-team-b<br/>label: team=team-b<br/>метрики app_*"]
+    subgraph Apps["Сервисы (Helm-чарт golden-signal-app)"]
+        APPA["app-team-a<br/>label: team=team-a<br/>метрики app_*"]
+        APPB["app-team-b<br/>label: team=team-b<br/>метрики app_*"]
+    end
 
     VMALERT["vmalert<br/>VMRule: HighErrorRate / HighLatency / HighGoroutineCount<br/>алерт наследует label team="]
     AM["Alertmanager<br/>route по team= → webhook"]
@@ -52,6 +54,7 @@ flowchart TD
 
     class APPA,APPB app
     class VMALERT,AM alert
+    class IMPULSE impulse
     class CHATA,CHATB chat
     class DEVOPS,TLA,DEVA,TLB,DEVB person
 ```
