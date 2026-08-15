@@ -26,11 +26,7 @@ Alertmanager — это stateless-«почтальон»: сгруппирова
 
 ### 1. Подготовка файла конфигурации victoria-metrics-k8s-stack
 
-```
-cat <<'EOF' >> values/vmks-values.yaml
-# здесь values/vmks-values.yaml через EOF
-EOF
-```
+Файл vmks-values.yaml уже создан terraform.
 
 ### 2. VM K8s Stack (метрики, Grafana)
 
