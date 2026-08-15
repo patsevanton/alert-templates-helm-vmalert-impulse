@@ -1,6 +1,6 @@
 # Схема адресации инцидентов в Telegram
 
-Сценарий: 2 сервиса (`golden-signal-app` с `team=team-a` и `team=team-b`) → 2 команды разработки (teamlead + developer) + 2 чата команд в Telegram.
+Сценарий: 2 сервиса (`golden-signal-app` с `team=team-a` и `team=team-b`) → 2 команды разработки (по 2 developer'а) + 2 чата команд в Telegram.
 
 ```mermaid
 flowchart TD
@@ -19,10 +19,10 @@ flowchart TD
 
     subgraph People["Люди (telegram_user_id)"]
         DEVOPS["devops<br/>admin/devops инженер"]
-        TLA["teamlead-a<br/>TG ID: tl_a_tg_id"]
-        DEVA["developer-a<br/>TG ID: dev_a_tg_id"]
-        TLB["teamlead-b<br/>TG ID: tl_b_tg_id"]
-        DEVB["developer-b<br/>TG ID: dev_b_tg_id"]
+        DEVA1["developer-a1<br/>TG ID: dev_a1_tg_id"]
+        DEVA2["developer-a2<br/>TG ID: dev_a2_tg_id"]
+        DEVB1["developer-b1<br/>TG ID: dev_b1_tg_id"]
+        DEVB2["developer-b2<br/>TG ID: dev_b2_tg_id"]
     end
 
     APPA --> VMALERT
@@ -33,18 +33,18 @@ flowchart TD
     IMPULSE -->|"team=team-a"| CHATA
     IMPULSE -->|"team=team-b"| CHATB
 
-    CHATA -.->|"упоминание tg://user?id="| TLA
-    CHATA -.-> DEVA
-    CHATB -.-> TLB
-    CHATB -.-> DEVB
+    CHATA -.->|"упоминание tg://user?id="| DEVA1
+    CHATA -.-> DEVA2
+    CHATB -.-> DEVB1
+    CHATB -.-> DEVB2
 
-    CHATA -.->|"кнопка Take It<br/>from.id из callback"| TLA
-    CHATA -.-> DEVA
-    CHATB -.-> TLB
-    CHATB -.-> DEVB
+    CHATA -.->|"кнопка Take It<br/>from.id из callback"| DEVA1
+    CHATA -.-> DEVA2
+    CHATB -.-> DEVB1
+    CHATB -.-> DEVB2
 
-    CHATA -.->|"если @tl-a/@dev-a недостижимы<br/>→ 🔔 admins"| DEVOPS
-    CHATB -.->|"если @tl-b/@dev-b недостижимы<br/>→ 🔔 admins"| DEVOPS
+    CHATA -.->|"если @dev-a1/@dev-a2 недостижимы<br/>→ 🔔 admins"| DEVOPS
+    CHATB -.->|"если @dev-b1/@dev-b2 недостижимы<br/>→ 🔔 admins"| DEVOPS
 
     classDef app fill:#e8f5e9,stroke:#388e3c,color:#000
     classDef alert fill:#ffebee,stroke:#c62828,color:#000
@@ -56,7 +56,7 @@ flowchart TD
     class VMALERT,AM alert
     class IMPULSE impulse
     class CHATA,CHATB chat
-    class DEVOPS,TLA,DEVA,TLB,DEVB person
+    class DEVOPS,DEVA1,DEVA2,DEVB1,DEVB2 person
 ```
 
 ## Легенда связей
