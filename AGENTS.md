@@ -37,13 +37,13 @@ Impulse устанавливается через Helm вручную (шаг 5 
 
 | Файл | Назначение | Команда |
 |---|---|---|
-| `README.md` (шаг 5) | Рабочая инструкция для пользователя | `helm install my-impulse impulse/impulse --version 1.0.14 -f values/values-impulse.yaml` |
+| `README.md` (шаг 5) | Рабочая инструкция для пользователя | `helm install my-impulse impulse/impulse --version 1.0.15 -f values/values-impulse.yaml` |
 | `test_install_impulse.md` | Черновик команд (справочно) | то же |
 
 **Параметры установки:**
 - репо: `https://eslupmi-community.github.io/helm-charts`
 - чарт: `impulse/impulse`
-- версия: `1.0.14`
+- версия: `1.0.15`
 - release name: `my-impulse`
 - values: `values/values-impulse.yaml` (рендерится Terraform из `values/values-impulse.yaml.tftpl`)
 - namespace: `impulse` (создаётся `--create-namespace`)
