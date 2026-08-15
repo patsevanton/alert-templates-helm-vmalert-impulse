@@ -95,7 +95,7 @@ curl http://localhost:8080/work
 
 ### 3. Настройка Telegram-бота
 
-Для отправки уведомлений в Telegram потребуется бот и значения: `bot-token`, `telegram_chat_id` (чат team-a), `telegram_admin_id`, `telegram_teamlead_id`, `telegram_support_oncall_id`.
+Для отправки уведомлений в Telegram потребуется бот и значения: `bot-token`, `telegram_chat_id` (чат team-a), `telegram_admin_id`, `telegram_teamlead_id`, `telegram_support_id`.
 
 #### Если у вас нет Telegram-бота
 
@@ -128,10 +128,10 @@ curl http://localhost:8080/work
     - Teamlead пишет боту [@userinfobot](https://t.me/userinfobot) команду `/start` из своего аккаунта
     - Бот вернёт `id` teamlead — это и есть `telegram_teamlead_id`
     - Если teamlead и devops-инженер — один и тот же человек, `telegram_teamlead_id` совпадает с `telegram_admin_id`
-4. Получите `telegram_support_oncall_id` — Telegram `user_id` дежурного техподдержки (последняя ступень эскалации, тегается через 5 минут после teamlead, если никто не нажал **Take It**):
+4. Получите `telegram_support_id` — Telegram `user_id` дежурного техподдержки (последняя ступень эскалации, тегается через 5 минут после teamlead, если никто не нажал **Take It**):
     - Дежурный техподдержки пишет боту [@userinfobot](https://t.me/userinfobot) команду `/start` из своего аккаунта
-    - Бот вернёт `id` — это и есть `telegram_support_oncall_id`
-    - Если дежурный техподдержки и devops-инженер — один и тот же человек, `telegram_support_oncall_id` совпадает с `telegram_admin_id`
+    - Бот вернёт `id` — это и есть `telegram_support_id`
+    - Если дежурный техподдержки и devops-инженер — один и тот же человек, `telegram_support_id` совпадает с `telegram_admin_id`
 
 #### Включение топиков (форума) в группах Telegram
 
@@ -153,7 +153,7 @@ cat > terraform.tfvars <<'EOF'
 telegram_chat_id           = "<ID чата team-a>"
 telegram_admin_id          = "<ваш telegram_admin_id>"
 telegram_teamlead_id       = "<telegram_admin_id teamlead>"
-telegram_support_oncall_id = "<telegram_admin_id дежурного техподдержки>"
+telegram_support_id = "<telegram_admin_id дежурного техподдержки>"
 bot_token                  = "<ваш bot-token вида 123456789:ABCdefGhI-jklMnoPQRstuVwxYZ>"
 EOF
 ```
@@ -218,7 +218,7 @@ users:
   team_a_teamlead:
     id: "${telegram_teamlead_id}"      # числовой Telegram user_id teamlead
   support_oncall:
-    id: "${telegram_support_oncall_id}" # числовой Telegram user_id дежурного техподдержки
+    id: "${telegram_support_id}" # числовой Telegram user_id дежурного техподдержки
   team_a_oncall:
     id: "${telegram_admin_id}"          # дежурный team-a (те же люди, что и teamlead/admin)
 ```
