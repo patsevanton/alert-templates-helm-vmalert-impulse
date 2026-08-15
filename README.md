@@ -45,6 +45,10 @@ helm upgrade --install vmks \
 
 Demo-приложение Golden Signal написано на **Go** (`app/main.go`).
 
+Исходники:
+- Helm-чарт: https://github.com/patsevanton/alert-templates-helm-vmalert-impulse/tree/main/chart
+- Приложение на Go: https://github.com/patsevanton/alert-templates-helm-vmalert-impulse/tree/main/app
+
 Приложение:
 
 - Экспонирует HTTP-эндпоинты `/` (health) и `/work` (обработка запроса со случайной задержкой 100–499 мс и ~20% случайных ошибок).
@@ -55,7 +59,7 @@ Demo-приложение Golden Signal написано на **Go** (`app/main.
   - `app_goroutines` — текущее число горутин, индикатор насыщения (gauge).
 - Запускает фоновый генератор трафика: каждые 2 с отправляет запрос на `/work`, чтобы метрики и алерты обновлялись постоянно.
 
-Правила алертов задаются как **VMRule** (Custom Resource VictoriaMetrics) — манифест `chart/templates/vmrule.yaml`. VMRule применяется в кластер **вместе с установкой приложения** одним `helm upgrade --install`, отдельного шага для алертов нет. vmalert автоматически подхватывает VMRule через `selectAllByDefault: true`.
+Правила алертов задаются как **VMRule** (Custom Resource VictoriaMetrics) — манифест `chart/templates/vmrule.yaml` (исходный код: https://github.com/patsevanton/alert-templates-helm-vmalert-impulse/blob/main/chart/templates/vmrule.yaml). VMRule применяется в кластер **вместе с установкой приложения** одним `helm upgrade --install`, отдельного шага для алертов нет. vmalert автоматически подхватывает VMRule через `selectAllByDefault: true`.
 
 Правила алертов (группа `golden-signal-alerts`):
 
