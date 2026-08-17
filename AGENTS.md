@@ -14,7 +14,7 @@ Operational notes for working with this repo's infrastructure (Yandex Cloud + K8
 | `net.tf` | VPC-сеть `impulse`, 3 подсети (a/b/d), NAT-шлюз + route table для исходящего трафика из приватных подсетей (ноды без публичных IP) |
 | `ip-dns.tf` | Ресурс `yandex_vpc_address.addr` — статический публичный IP балансировщика ingress-nginx. DNS-зона не создаётся: имена формируются через sslip.io |
 | `k8s.tf` | K8s-кластер + node group (3 ноды, `nat=false`), `helm_release` ingress-nginx, `locals` + `local_file` для рендера values из `.tftpl` и манифеста Secret `impulse-telegram-secrets`, `output` для URL сервисов |
-| `cluster-issuer.yaml` | ClusterIssuer Let's Encrypt для cert-manager. **Сейчас не применяется** (TLS выключен) — см. секцию «TLS / cert-manager» |
+| `cluster-issuer.yaml` | ClusterIssuer Let's Encrypt для cert-manager. Применяется пользователем вручную `kubectl apply -f cluster-issuer.yaml` — см. секцию «TLS / cert-manager» |
 | `impulse-telegram-secret.yaml.tftpl` | Шаблон манифеста Secret `impulse-telegram-secrets` (Namespace + Secret с `bot-token` в base64). Рендерится Terraform в `impulse-telegram-secret.yaml` (в `.gitignore`), применяется пользователем вручную `kubectl apply -f` |
 | `values/vmks-values.yaml.tftpl` | Шаблон values victoria-metrics-k8s-stack (Grafana, vmcluster, alertmanager, vmalert). Рендерится Terraform в `values/vmks-values.yaml` (в `.gitignore`) |
 | `values/values-impulse.yaml.tftpl` | Шаблон values Impulse (Telegram, ingress). Рендерится в `values/values-impulse.yaml` (в `.gitignore`) |
@@ -76,19 +76,11 @@ terraform output -raw grafana_admin_password_command | sh
 
 ## TLS / cert-manager
 
-**Текущее состояние: TLS выключен.** Все ingress (Grafana, vmsingle, alertmanager, vmalert, Impulse) работают по HTTP, `nginx.ingress.kubernetes.io/ssl-redirect: "false"` в `values/vmks-values.yaml.tftpl`. В `values/values-impulse.yaml.tftpl` убраны `cert-manager.io/cluster-issuer`, `kubernetes.io/tls-acme` и блок `tls`; `impulse_address` изменён на `http://`.
+**Текущее состояние: TLS включён.** Все публичные ingress (Grafana, vmsingle, alertmanager, vmalert, Impulse) работают по HTTPS через cert-manager + Let's Encrypt (ClusterIssuer `letsencrypt-prod`, HTTP-01 challenge через ingress class `nginx`). В `values/vmks-values.yaml.tftpl` для каждого ingress стоит `nginx.ingress.kubernetes.io/ssl-redirect: "true"` + аннотация `cert-manager.io/cluster-issuer: letsencrypt-prod` + блок `tls` с индивидуальным `secretName`. В `values/values-impulse.yaml.tftpl` аннотации `cert-manager.io/cluster-issuer: letsencrypt-prod`, `kubernetes.io/tls-acme: "true"`, блок `tls` (`secretName: impulse-tls`) и `impulse_address: "https://impulse.${lb_ip}.sslip.io"`. В `k8s.tf` все `output.*_url` отдают `https://`. `cluster-issuer.yaml` применяется пользователем вручную (`kubectl apply -f cluster-issuer.yaml`), email — `admin@cert-manager.89.169.133.122.sslip.io`.
 
-**Почему это проблема:** Telegram Bot API принимает webhooks и callback-адреса только по HTTPS. Без HTTPS Telegram-интеграция Impulse (`impulse_address` для кнопок callback) работать не будет.
-
-**Что нужно сделать для включения TLS (задача зафиксирована здесь как TODO):**
-- [ ] Установить cert-manager (`helm upgrade --install cert-manager ...` — команда в README, шаг 2).
-- [ ] Применить `cluster-issuer.yaml` (`kubectl apply -f cluster-issuer.yaml`). Указать реальный email вместо `my-email@mycompany.com`.
-- [ ] В `values/values-impulse.yaml.tftpl`: вернуть аннотации `cert-manager.io/cluster-issuer: letsencrypt-prod` и `kubernetes.io/tls-acme: "true"`, блок `tls` с `secretName: impulse-tls`, изменить `impulse_address` на `https://impulse.${lb_ip}.sslip.io`.
-- [ ] В `values/vmks-values.yaml.tftpl`: для каждого ingress (grafana / vmcluster.select / alertmanager / vmalert) поменять `ssl-redirect: "false"` → `"true"` и добавить аннотацию `cert-manager.io/cluster-issuer: letsencrypt-prod` + блок `tls`.
-- [ ] В `k8s.tf`: поменять `output.impulse_url` с `http://` на `https://`.
-- [ ] В README: убрать пометку «TLS выключен» из блока вверху и описания шага 2 / секции «Доступ к сервисам».
-
-> sslip.io поддерживает валидацию Let's Encrypt HTTP-01 (ClusterIssuer `http01.ingress.class: nginx`), так что сертификаты для `<сервис>.<LB_IP>.sslip.io` выпустятся без проблем.
+> sslip.io поддерживает валидацию Let's Encrypt HTTP-01 (ClusterIssuer `http01.ingress.class: nginx`), так что сертификаты для `<сервис>.<LB_IP>.sslip.io` выпускаются без проблем.
+>
+> Внутрикластерный трафик идёт по HTTP: webhook из Alertmanager в Impulse — `http://impulse.impulse.svc.cluster.local:5000/` (см. `values/vmks-values.yaml.tftpl`), внутренний self-call демо-приложения — `http://localhost:8080` (см. `app/main.go`). TLS на эти endpoints не навешивается — они не покидают кластер.
 
 ### Проверка после включения TLS
 
