@@ -9,7 +9,7 @@ impulseConfig:
     type: "telegram"
     # URL of Impulse instance for button callbacks. HTTPS — TLS включён через cert-manager + Let's Encrypt.
     impulse_address: "https://impulse.${lb_ip}.sslip.io"
-    admin_users: ["${telegram_admin_id}"]
+    admin_users: ["telegram_admin_id"]
     users:
       telegram_admin_id:
         id: "${telegram_admin_id}"
