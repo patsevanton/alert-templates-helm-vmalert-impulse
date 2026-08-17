@@ -95,7 +95,7 @@ curl http://localhost:8080/work
 
 ### 3. Настройка Telegram-бота
 
-Для отправки уведомлений в Telegram потребуется бот и значения: `bot-token`, `telegram_chat_id` (чат team-a), `telegram_admin_id`, `telegram_teamlead_id`, `telegram_support_id`.
+Для отправки уведомлений в Telegram потребуется бот и значения: `bot-token` - id вашего telegram бота, `telegram_chat_id` (чат team-a), `telegram_admin_id`, `telegram_teamlead_id`, `telegram_support_id`.
 
 #### Если у вас нет Telegram-бота
 
@@ -150,11 +150,11 @@ Impulse реализует инциденты в Telegram как **топики 
 
 ```bash
 cat > terraform.tfvars <<'EOF'
-telegram_chat_id           = "<ID чата team-a>"
-telegram_admin_id          = "<ваш telegram_admin_id>"
-telegram_teamlead_id       = "<telegram_admin_id teamlead>"
-telegram_support_id = "<telegram_admin_id дежурного техподдержки>"
-bot_token                  = "<ваш bot-token вида 123456789:ABCdefGhI-jklMnoPQRstuVwxYZ>"
+telegram_chat_id     = "ID чата team-a"
+telegram_admin_id    = "в telegram_id devops инженера"
+telegram_teamlead_id = "telegram_id teamlead team-a"
+telegram_support_id  = "telegram_id дежурного техподдержки"
+bot_token            = "token telegram бота вида 123456789:ABCdefGhI-jklMnoPQRstuVwxYZ"
 EOF
 ```
 
