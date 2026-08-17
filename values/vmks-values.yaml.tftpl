@@ -70,7 +70,7 @@ alertmanager:
     receivers:
       - name: impulse
         webhook_configs:
-          - url: 'http://my-impulse.impulse.svc.cluster.local:5000/'
+          - url: 'http://impulse.impulse.svc.cluster.local:5000/'
       - name: blackhole
   ingress:
     enabled: true
