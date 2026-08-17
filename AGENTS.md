@@ -37,14 +37,14 @@ Impulse устанавливается через Helm вручную (шаг 5 
 
 | Файл | Назначение | Команда |
 |---|---|---|
-| `README.md` (шаг 5) | Рабочая инструкция для пользователя | `helm install my-impulse impulse/impulse --version 1.0.15 -f values/values-impulse.yaml` |
+| `README.md` (шаг 5) | Рабочая инструкция для пользователя | `helm install impulse impulse/impulse --version 1.0.15 -f values/values-impulse.yaml` |
 | `test_install_impulse.md` | Черновик команд (справочно) | то же |
 
 **Параметры установки:**
 - репо: `https://eslupmi-community.github.io/helm-charts`
 - чарт: `impulse/impulse`
 - версия: `1.0.15`
-- release name: `my-impulse`
+- release name: `impulse`
 - values: `values/values-impulse.yaml` (рендерится Terraform из `values/values-impulse.yaml.tftpl`)
 - namespace: `impulse` (создаётся `--create-namespace`)
 
@@ -55,7 +55,7 @@ Impulse устанавливается через Helm вручную (шаг 5 
 **Ждём мерджа PR #11 (https://github.com/eslupmi-community/helm-charts/pull/11):**
 PR меняет пробы deployment Impulse: `livenessProbe` `/queue` → `/livez` (всегда `200`, даже в standby), `readinessProbe` `/queue` → `/readyz` (`200` primary, `503` standby). Исправляет баг, когда kubelet убивал standby-поды по liveness-пробе во время rolling update (проблема #10). После мерджа и публикации новой версии чарта в репо `https://eslupmi-community.github.io/helm-charts`:
 - [ ] Обновить `version` (с `1.0.14`) на новую версию чарта `impulse/impulse` везде, где упоминается установка: `README.md` (шаг 5) и `test_install_impulse.md`.
-- [ ] Проверить, что `helm repo update` подтянул новую версию, и переустановить релиз: `helm upgrade my-impulse impulse/impulse --version <новая> -f values/values-impulse.yaml -n impulse`.
+- [ ] Проверить, что `helm repo update` подтянул новую версию, и переустановить релиз: `helm upgrade impulse impulse/impulse --version <новая> -f values/values-impulse.yaml -n impulse`.
 - [ ] Проверить, что standby-поды больше не рестартятся во время rolling update (`kubectl get pods -n impulse` — `RESTARTS=0`).
 - [ ] Замечание: PR #11 НЕ решает дедлок rolling update при `replicaCount: 1` + RWO PVC (новый под зависает в standby, пока старый primary держит HA file lock) — это отдельная задача уровня deployment-strategy (см. issue #10).
 
