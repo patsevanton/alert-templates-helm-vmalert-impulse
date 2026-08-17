@@ -41,7 +41,7 @@ helm upgrade --install vmks \
   -f values/vmks-values.yaml
 ```
 
-### 2. Установка demo-приложения Golden Signal через Helm
+### 3. Установка demo-приложения Golden Signal через Helm
 
 Demo-приложение Golden Signal написано на **Go** (`app/main.go`).
 
@@ -65,7 +65,7 @@ Demo-приложение Golden Signal написано на **Go** (`app/main.
 
 | Алерт | Условие | For | Severity |
 |---|---|---|---|
-| `HighErrorRate` | `rate(app_errors_total[5m]) / rate(app_requests_total[5m]) > 0.05` | 1m | critical |
+| `HighErrorRate` | `rate(app_errors_total[5m]) / (rate(app_requests_total[5m]) > 0) > 0.05` | 1m | critical |
 | `HighLatency` | `histogram_quantile(0.95, sum(rate(app_request_latency_seconds_bucket[5m])) by (le)) > 0.5` | 2m | warning |
 | `HighGoroutineCount` | `app_goroutines > 50` | 1m | warning |
 
@@ -93,7 +93,7 @@ curl http://localhost:8080/metrics
 curl http://localhost:8080/work
 ```
 
-### 3. Настройка Telegram-бота
+### 4. Настройка Telegram-бота
 
 Для отправки уведомлений в Telegram потребуется бот и значения: `bot-token` - id вашего telegram бота, `telegram_chat_id` (чат team-a), `telegram_admin_id`, `telegram_teamlead_id`, `telegram_support_id`.
 
@@ -174,7 +174,7 @@ kubectl apply -f impulse-telegram-secret.yaml
 
 > Secret `impulse-telegram-secrets` в namespace `impulse` создаётся вручную через `kubectl apply -f impulse-telegram-secret.yaml` после `terraform apply`. Terraform не вызывает kubectl напрямую — это избегает ошибок доступа к API кластера во время `apply`. При смене `bot_token` в `terraform.tfvars` повторный `terraform apply` перегенерирует `impulse-telegram-secret.yaml`, после чего его нужно повторно применить `kubectl apply -f impulse-telegram-secret.yaml`.
 
-### 4. Установка Impulse
+### 5. Установка Impulse
 
 Для установки Impulse через Helm используйте следующие команды:
 
@@ -291,7 +291,7 @@ chains:
 
 > **support_oncall тегается в ТОМ ЖЕ чате инцидента** (`incidents_team_a`), отдельного чата техподдержки нет. Impulse не поддерживает шаг `channel` в schedule-chain (шаги только `user`/`user_group`/`group`/`webhook`/`chain`/`wait`), а шаг `user` постит в текущий чат инцидента, не создаёт новый инцидент в другом канале.
 
-> Schedule-chain в Impulse поддерживает `dow` (день недели), `dom` (день месяца), `date` (точная дата) и modulus-выражения (`dow % 2` для чередования). Матчеры оцениваются сверху вниз, ветка без `matcher` — fallback (срабатывает, если ни один матчер не совпал). Подробнее — в [документации Impulse](https://eslupmi-community.github.io/impulse/config_file/#schedule-chains).
+> Schedule-chain в Impulse поддерживает `dow` (день недели), `dom` (день месяца), `date` (точная дата) и modulus-выражения (`dow % 2` для чередования). Матчеры оцениваются сверху вниз, ветка без `matcher` — fallback (срабатывает, если ни один матчер не совпал). Подробнее — в [документации Impulse](https://docs.impulse.bot/stable/config_file/#schedule-chains).
 
 > Шаг `user` упоминает пользователя в сообщении инцидента в текущем чате (не в личку). Для отправки в личные сообщения нужно, чтобы пользователь предварительно начал диалог с ботом (Telegram Bot API требует `/start` от пользователя перед отправкой ему сообщений).
 

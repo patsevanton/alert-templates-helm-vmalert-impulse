@@ -15,7 +15,7 @@ spec:
         (
           rate(app_errors_total[5m])
           /
-          rate(app_requests_total[5m])
+          (rate(app_requests_total[5m]) > 0)
         ) > {{ .Values.alerts.errors.threshold }}
       for: 1m
       labels:
