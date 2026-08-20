@@ -4,6 +4,8 @@ Operational notes for working with this repo's infrastructure (Yandex Cloud + K8
 
 ## Требование к версии Kubernetes
 
+Запускать проект в регионе kz. Если проект не в регионе kz, то остановиться
+
 Кластер проверен на **Managed Kubernetes 1.33** (release channel `STABLE`). В `k8s.tf` версия жёстко задана как `1.33` и для master, и для node group. Согласно общему правилу репозитория — обновлять компоненты инфраструктуры, кроме k8s и ingress-nginx, без явного указания не изменять версии k8s и ingress-nginx.
 
 ## Структура проекта
