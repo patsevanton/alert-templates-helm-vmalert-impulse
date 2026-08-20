@@ -65,3 +65,16 @@ variable "bot_token" {
   description = "Токен Telegram-бота вида 123456789:ABCdefGhI-jklMnoPQRstuVwxYZ"
   sensitive   = true
 }
+
+# URL VLESS-подписки для mihomo-прокси. Чувствительные данные — не выводится в
+# terraform output и не попадает в git (terraform.tfvars в .gitignore). Используется
+# для рендера манифеста Secret `mihomo-vless-proxy` (поле proxy-providers.sub.url),
+# который применяется пользователем вручную через `kubectl apply -f mihomo-vless-proxy.yaml`.
+# mihomo маршрутизирует в VLESS только домены Telegram (api.telegram.org, t.me и т.д.),
+# остальной трафик идёт напрямую (DIRECT). Impulse отправляет алерты в Telegram через
+# mihomo (env HTTPS_PROXY=http://mihomo-proxy.mihomo.svc.cluster.local:1080).
+variable "vless_subscription_url" {
+  type        = string
+  description = "URL VLESS-подписки для mihomo-прокси (поднимается в namespace mihomo). Импульс отправляет алерты в Telegram через этот прокси"
+  sensitive   = true
+}

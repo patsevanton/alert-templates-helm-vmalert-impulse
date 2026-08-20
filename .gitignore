@@ -32,6 +32,8 @@ values/*.yaml
 cluster-issuer.yaml
 # Generated Telegram Secret manifest (from templatefile)
 impulse-telegram-secret.yaml
+# Generated mihomo VLESS proxy manifest (from templatefile)
+mihomo-vless-proxy.yaml
 
 # Include override files you do wish to add to version control using negated pattern
 # !example_override.tf

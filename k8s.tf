@@ -171,6 +171,17 @@ locals {
   telegram_secret = templatefile("${path.module}/impulse-telegram-secret.yaml.tftpl", {
     bot_token_b64 = base64encode(var.bot_token)
   })
+
+  # Рендер манифеста mihomo-vless-proxy (Namespace mihomo + Secret с URL VLESS-
+  # подписки + Deployment + Service + NetworkPolicy). URL подписки подставляется
+  # из var.vless_subscription_url. Применяется пользователем вручную через
+  # `kubectl apply -f mihomo-vless-proxy.yaml` после `terraform apply` (до
+  # установки Impulse, чтобы env HTTPS_PROXY указывал на живой прокси). При смене
+  # vless_subscription_url повторный `terraform apply` перегенерирует файл — его
+  # нужно повторно применить через `kubectl apply -f`.
+  mihomo_vless_proxy = templatefile("${path.module}/mihomo-vless-proxy.yaml.tftpl", {
+    vless_subscription_url = var.vless_subscription_url
+  })
 }
 
 # Рендер values-файлов из шаблонов с актуальным IP балансировщика (sslip.io-хосты)
@@ -195,11 +206,23 @@ resource "local_file" "cluster_issuer" {
 
 # Рендер манифеста Secret impulse-telegram-secrets из шаблона с токеном бота.
 # Применяется пользователем вручную через `kubectl apply -f impulse-telegram-secret.yaml`
-# после `terraform apply`. При смене bot_token повторный `terraform apply` перегенерирует
+# после `terraform apply`. При смене bot_token в `terraform.tfvars` повторный `terraform apply` перегенерирует
 # файл — его нужно повторно применить через `kubectl apply -f`.
 resource "local_file" "impulse_telegram_secret" {
   content         = local.telegram_secret
   filename        = "${path.module}/impulse-telegram-secret.yaml"
+  file_permission = "0644"
+}
+
+# Рендер манифеста mihomo-vless-proxy (Namespace + Secret с URL VLESS-подписки +
+# Deployment + Service + NetworkPolicy). Применяется пользователем вручную через
+# `kubectl apply -f mihomo-vless-proxy.yaml` после `terraform apply` (до установки
+# Impulse, чтобы env HTTPS_PROXY указывал на живой прокси). При смене
+# vless_subscription_url в `terraform.tfvars` повторный `terraform apply`
+# перегенерирует файл — его нужно повторно применить через `kubectl apply -f`.
+resource "local_file" "mihomo_vless_proxy" {
+  content         = local.mihomo_vless_proxy
+  filename        = "${path.module}/mihomo-vless-proxy.yaml"
   file_permission = "0644"
 }
 

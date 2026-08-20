@@ -10,14 +10,15 @@ Operational notes for working with this repo's infrastructure (Yandex Cloud + K8
 
 | Файл / каталог | Назначение |
 |---|---|
-| `versions.tf` | Провайдеры Terraform: `yandex`, `helm`, `time`, `local`, `null`. Переменные `acme_email`, `telegram_chat_id`, `telegram_admin_id`, `bot_token` |
+| `versions.tf` | Провайдеры Terraform: `yandex`, `helm`, `time`, `local`, `null`. Переменные `acme_email`, `telegram_chat_id`, `telegram_admin_id`, `telegram_teamlead_id`, `telegram_support_id`, `bot_token`, `vless_subscription_url` |
 | `net.tf` | VPC-сеть `impulse`, 3 подсети (a/b/d), NAT-шлюз + route table для исходящего трафика из приватных подсетей (ноды без публичных IP) |
 | `ip-dns.tf` | Ресурс `yandex_vpc_address.addr` — статический публичный IP балансировщика ingress-nginx. DNS-зона не создаётся: имена формируются через sslip.io |
-| `k8s.tf` | K8s-кластер + node group (3 ноды, `nat=false`), `helm_release` ingress-nginx, `locals` + `local_file` для рендера values из `.tftpl` и манифеста Secret `impulse-telegram-secrets`, `output` для URL сервисов |
+| `k8s.tf` | K8s-кластер + node group (3 ноды, `nat=false`), `helm_release` ingress-nginx, `locals` + `local_file` для рендера values из `.tftpl` и манифестов Secret `impulse-telegram-secrets` и `mihomo-vless-proxy`, `output` для URL сервисов |
 | `cluster-issuer.yaml` | ClusterIssuer Let's Encrypt для cert-manager. Применяется пользователем вручную `kubectl apply -f cluster-issuer.yaml` — см. секцию «TLS / cert-manager» |
 | `impulse-telegram-secret.yaml.tftpl` | Шаблон манифеста Secret `impulse-telegram-secrets` (Namespace + Secret с `bot-token` в base64). Рендерится Terraform в `impulse-telegram-secret.yaml` (в `.gitignore`), применяется пользователем вручную `kubectl apply -f` |
+| `mihomo-vless-proxy.yaml.tftpl` | Шаблон манифеста mihomo VLESS-прокси (Namespace `mihomo` + Secret с URL VLESS-подписки + Deployment + Service + NetworkPolicy). Рендерится Terraform в `mihomo-vless-proxy.yaml` (в `.gitignore`), применяется пользователем вручную `kubectl apply -f`. mihomo маршрутизирует в VLESS только домены Telegram (api.telegram.org, t.me, …), остальное — DIRECT. Фильтр зарубежных серверов в `proxy-groups.auto` |
 | `values/vmks-values.yaml.tftpl` | Шаблон values victoria-metrics-k8s-stack (Grafana, vmcluster, alertmanager, vmalert). Рендерится Terraform в `values/vmks-values.yaml` (в `.gitignore`) |
-| `values/values-impulse.yaml.tftpl` | Шаблон values Impulse (Telegram, ingress). Рендерится в `values/values-impulse.yaml` (в `.gitignore`) |
+| `values/values-impulse.yaml.tftpl` | Шаблон values Impulse (Telegram, ingress, env HTTPS_PROXY для mihomo-прокси). Рендерится в `values/values-impulse.yaml` (в `.gitignore`) |
 | `chart/` | Helm-чарт demo-приложения Golden Signal: `Chart.yaml`, `values.yaml`, `templates/` (`_helpers.tpl`, `deployment.yaml`, `service.yaml`, `servicemonitor.yaml`, `vmrule.yaml`) |
 | `app/` | Исходники demo-приложения на Go (`main.go`, `go.mod`, `Dockerfile`): HTTP-эндпоинты `/` и `/work`, метрики Prometheus `app_requests_total` / `app_errors_total` / `app_request_latency_seconds` / `app_goroutines`, фоновый генератор трафика |
 | `test_install_impulse.md` | Черновик команд установки Impulse (справочно) |
@@ -26,6 +27,30 @@ Operational notes for working with this repo's infrastructure (Yandex Cloud + K8
 ### Рендер values из `.tftpl`
 
 IP балансировщика известен только после `terraform apply`, поэтому статичные values не годятся. Шаблоны лежат в `values/*.tftpl` с плейсхолдером `${lb_ip}`; `k8s.tf` рендерит их через `templatefile` и пишет в `values/*.yaml` ресурсами `local_file`. Отрендеренные `.yaml` добавлены в `.gitignore` — в git хранятся только `.tftpl`. После любого изменения шаблона: `terraform apply` → `helm upgrade ... -f values/<file>.yaml`.
+
+### mihomo VLESS-прокси для Telegram-трафика Impulse
+
+Impulse отправляет алерты в Telegram через mihomo VLESS-прокси (Telegram API с IP Yandex Cloud нестабилен/гео-блокирован). mihomo поднимается отдельным Deployment + Service в namespace `mihomo` (манифест `mihomo-vless-proxy.yaml.tftpl`, рендерится Terraform в `mihomo-vless-proxy.yaml`).
+
+**Поток трафика:**
+
+```
+Impulse pod ──HTTPS_PROXY──► mihomo-proxy.mihomo.svc.cluster.local:1080
+                              ├── telegram.org / t.me / api.telegram.org ──► VLESS ──► Telegram API
+                              └── всё остальное ──► DIRECT (напрямую)
+```
+
+**Ключевые файлы:**
+- `mihomo-vless-proxy.yaml.tftpl` — Namespace `mihomo` + Secret с URL VLESS-подписки (из `var.vless_subscription_url`) + Deployment (image `metacubex/mihomo:v1.19.29`, mixed-port 1080) + Service `mihomo-proxy:1080` + NetworkPolicy (доступ только из namespace `impulse`).
+- `values/values-impulse.yaml.tftpl` — секция `config.env` с `HTTPS_PROXY`/`http_proxy`/`NO_PROXY`, указывающими на `http://mihomo-proxy.mihomo.svc.cluster.local:1080`.
+
+**Механизм проксирования в Impulse:** Impulse (Python, aiohttp) создаёт `ClientSession` с `trust_env=True` (`app/http_client/session.py`), поэтому читает env `HTTPS_PROXY`/`http_proxy`/`NO_PROXY` из окружения. `NO_PROXY` исключает внутрикластерный трафик (webhook из Alertmanager в Impulse — `http://impulse.impulse.svc.cluster.local:5000/`).
+
+**Правила маршрутизации mihomo** (секция `rules` в `mihomo-vless-proxy.yaml.tftpl`): в VLESS идут только домены Telegram — `telegram.org`, `t.me`, `telegram.me`, `telegram.dog`, `tgraph.io`, `telesco.pe`, `telemetr.io`, `telegra.ph`, `tg.dev`; остальное — `DIRECT`.
+
+**Фильтр зарубежных серверов** (`proxy-groups.auto`): `filter` оставляет только зарубежные серверы (Нидерланды, Германия, Франция, Финляндия и т.д.), `exclude-filter` исключает РФ-серверы. Если подписка использует другие названия стран — regex нужно отрегулировать.
+
+**Применение:** `terraform apply` → `kubectl apply -f mihomo-vless-proxy.yaml` (до установки Impulse, чтобы env `HTTPS_PROXY` указывал на живой прокси). При смене `vless_subscription_url` повторный `terraform apply` перегенерирует файл — его нужно повторно применить `kubectl apply -f`.
 
 ### Именование сервисов (sslip.io)
 
@@ -118,6 +143,15 @@ terraform output impulse_url
 
 # Values-файлы перегенерированы (должны содержать актуальный IP из terraform output lb_ip)
 rg sslip.io values/vmks-values.yaml values/values-impulse.yaml
+
+# mihomo VLESS-прокси для Telegram-трафика Impulse
+kubectl get pods -n mihomo
+kubectl -n mihomo logs deploy/mihomo-proxy
+# Проверка проксирования api.telegram.org через VLESS:
+kubectl -n impulse run curl-debug --rm -i --restart=Never \
+  --image=curlimages/curl:8.10.0 -- \
+  curl -sS -x http://mihomo-proxy.mihomo.svc.cluster.local:1080 \
+  -o /dev/null -w "HTTP %{http_code}\n" https://api.telegram.org/
 
 # Поды
 kubectl get pods -n vmks

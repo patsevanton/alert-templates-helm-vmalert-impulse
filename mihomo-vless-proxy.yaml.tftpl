@@ -1,0 +1,211 @@
+# =============================================================================
+# mihomo-vless-proxy.yaml (рендерится Terraform из mihomo-vless-proxy.yaml.tftpl)
+#
+# mihomo (ядро Clash.Meta, ест VLESS-подписку напрямую) как ОТДЕЛЬНЫЙ
+# Deployment + Service в кластере. Impulse ходит в Telegram через него:
+#
+#   Impulse pod ──HTTPS_PROXY──► Service mihomo-proxy:1080 ──VLESS──► api.telegram.org
+#                                     │
+#                                     └── всё остальное ──► DIRECT (напрямую)
+#
+# Правила маршрутизации (секция rules) отправляют в VLESS только домены
+# Telegram (api.telegram.org, t.me, telegram.me, …) — остальное идёт через
+# DIRECT, экономя VLESS-трафик. Аутентификация на mixed-порту не включена —
+# прокси маршрутизирует только Telegram-домены, доступ к Service ограничен
+# NetworkPolicy (только поды namespace impulse).
+#
+# URL VLESS-подписки подставляется Terraform из var.vless_subscription_url
+# (terraform.tfvars, в .gitignore). Применяется пользователем вручную:
+#   kubectl apply -f mihomo-vless-proxy.yaml
+#
+# По образцу nora-vless-proxy.yaml из репозитория nora-yandex-k8s-deploy.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Namespace mihomo
+# -----------------------------------------------------------------------------
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mihomo
+
+---
+# -----------------------------------------------------------------------------
+# Конфиг mihomo + URL подписки (секрет!) — поэтому Secret, а не ConfigMap.
+# URL подписки рендерится Terraform из var.vless_subscription_url.
+# -----------------------------------------------------------------------------
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mihomo-vless-proxy
+  namespace: mihomo
+stringData:
+  config.yaml: |
+    mixed-port: 1080              # HTTP + SOCKS5 на одном порту
+    bind-address: "*"             # слушаем не только localhost (см. NetworkPolicy)
+    allow-lan: true
+    log-level: warning
+    ipv6: false
+    external-controller: 0.0.0.0:9090     # слушаем на всех интерфейсах для readiness probe
+    proxy-providers:
+      sub:
+        type: http
+        url: "${vless_subscription_url}"
+        interval: 3600            # обновлять подписку раз в час
+        path: ./providers/sub.yaml
+        health-check:
+          enable: true
+          url: https://www.gstatic.com/generate_204
+          interval: 300
+
+    proxies: []                   # всё приходит из провайдера подписки
+
+    proxy-groups:
+      - name: auto
+        type: url-test            # авто-выбор живого/быстрого сервера
+        use: [sub]
+        # Фильтр зарубежных серверов (regex по имени). Telegram API
+        # (api.telegram.org) доступен с IP России, но VLESS-сервер должен
+        # находиться вне РФ для стабильности (некоторые провайдеры VLESS
+        # маршрутизируют через РФ-узлы). Фильтр оставляет только зарубежные
+        # серверы: Нидерланды, Германия, Франция, Великобритания, Финляндия,
+        # Швеция и т.д. Если ваша подписка использует другие названия стран —
+        # отрегулируйте regex под них, иначе mihomo выберет РФ-сервер.
+        filter: "(?i)(Нидерланды|Германия|Франция|Великобритания|Финляндия|Швеция|Польша|Литва|Румыния|Австрия|Швейцария|Норвегия|США|USA|Англия|Европа|EU)"
+        exclude-filter: "(?i)Россия|Russia|Москва|СПб|Москва"
+        tolerance: 50
+        url: https://www.gstatic.com/generate_204
+
+    rules:
+      # внутрикластерное — мимо прокси (страховка к NO_PROXY на стороне Impulse)
+      - DOMAIN-SUFFIX,cluster.local,DIRECT
+      - DOMAIN-SUFFIX,svc,DIRECT
+      - IP-CIDR,10.0.0.0/8,DIRECT,no-resolve
+      - IP-CIDR,172.16.0.0/12,DIRECT,no-resolve
+      - IP-CIDR,192.168.0.0/16,DIRECT,no-resolve
+      # Telegram API гео-блокируется или нестабилен с IP Yandex Cloud — пускаем
+      # только Telegram-домены через VLESS-прокси. Остальные домены доступны
+      # напрямую, поэтому идут через DIRECT — экономим VLESS-трафик.
+      # Полный набор доменов Telegram: API, webhook, CDN, t.me, telegra.ph и т.д.
+      - DOMAIN-SUFFIX,telegram.org,auto
+      - DOMAIN-SUFFIX,t.me,auto
+      - DOMAIN-SUFFIX,telegram.me,auto
+      - DOMAIN-SUFFIX,telegram.dog,auto
+      - DOMAIN-SUFFIX,tgraph.io,auto
+      - DOMAIN-SUFFIX,telesco.pe,auto
+      - DOMAIN-SUFFIX,telemetr.io,auto
+      - DOMAIN-SUFFIX,telegra.ph,auto
+      - DOMAIN-SUFFIX,tg.dev,auto
+      - MATCH,DIRECT
+
+---
+# -----------------------------------------------------------------------------
+# Deployment
+# -----------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mihomo-proxy
+  namespace: mihomo
+  labels:
+    app: mihomo-proxy
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: mihomo-proxy
+  template:
+    metadata:
+      labels:
+        app: mihomo-proxy
+    spec:
+      containers:
+        - name: mihomo
+          image: metacubex/mihomo:v1.19.29
+          args: ["-d", "/etc/mihomo"]
+          ports:
+            - name: proxy
+              containerPort: 1080
+            - name: ctl
+              containerPort: 9090
+          volumeMounts:
+            - name: config
+              mountPath: /etc/mihomo/config.yaml
+              subPath: config.yaml
+              readOnly: true
+            # кэш скачанной подписки (директория из Secret монтируется ro,
+            # поэтому providers — отдельный writable emptyDir)
+            - name: providers
+              mountPath: /etc/mihomo/providers
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 9090
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 1080
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 20m
+              memory: 48Mi
+            limits:
+              memory: 192Mi
+      volumes:
+        - name: config
+          secret:
+            secretName: mihomo-vless-proxy
+        - name: providers
+          emptyDir: {}
+
+---
+# -----------------------------------------------------------------------------
+# Service — Impulse (namespace impulse) обращается по FQDN
+# mihomo-proxy.mihomo.svc.cluster.local
+# -----------------------------------------------------------------------------
+apiVersion: v1
+kind: Service
+metadata:
+  name: mihomo-proxy
+  namespace: mihomo
+  labels:
+    app: mihomo-proxy
+spec:
+  type: ClusterIP
+  selector:
+    app: mihomo-proxy
+  ports:
+    - name: proxy
+      port: 1080
+      targetPort: 1080
+
+---
+# -----------------------------------------------------------------------------
+# NetworkPolicy: к прокси могут обращаться только поды Impulse (namespace impulse).
+# Работает, если CNI поддерживает NetworkPolicy (Calico/Cilium); flannel игнорирует.
+# -----------------------------------------------------------------------------
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mihomo-proxy-allow-impulse
+  namespace: mihomo
+spec:
+  podSelector:
+    matchLabels:
+      app: mihomo-proxy
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        # доступ только из namespace impulse (где живёт Impulse)
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: impulse
+      ports:
+        - port: 1080
+          protocol: TCP

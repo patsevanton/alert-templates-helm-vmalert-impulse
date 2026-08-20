@@ -20,7 +20,12 @@ Alertmanager — это stateless-«почтальон»: сгруппирова
 
 **Кратко:** Alertmanager здесь выступает только маршрутизатором-источником (`receiver: impulse` → webhook на Impulse). Всю работу с пользователем внутри Telegram — треды, кнопки, состояния инцидента, привязку людей — делает Impulse.
 
-> **Перед шагами ниже** разверните kubernetes и установите cert-manager. Дальнейшие шаги предполагают, что кластер K8s работает, ingress-nginx слушает на публичном IP, cert-manager установлен, а ClusterIssuer `letsencrypt-prod` применён.
+> **Перед шагами ниже** разверните kubernetes, настройте VLESS-прокси (mihomo)
+> для отправки алертов Impulse в Telegram и установите cert-manager. Дальнейшие
+> шаги предполагают, что кластер K8s работает, ingress-nginx слушает на
+> публичном IP, mihomo-прокси поднят в namespace `mihomo`, cert-manager
+> установлен, а ClusterIssuer `letsencrypt-prod` применён. Инструкция по
+> инфраструктуре — в [`INFRASTRUCTURE.md`](INFRASTRUCTURE.md).
 
 ## Порядок развёртывания
 
@@ -150,29 +155,46 @@ Impulse реализует инциденты в Telegram как **топики 
 
 ```bash
 cat > terraform.tfvars <<'EOF'
-telegram_chat_id     = "ID чата team-a"
-telegram_admin_id    = "в telegram_id devops инженера"
-telegram_teamlead_id = "telegram_id teamlead team-a"
-telegram_support_id  = "telegram_id дежурного техподдержки"
-bot_token            = "token telegram бота вида 123456789:ABCdefGhI-jklMnoPQRstuVwxYZ"
+telegram_chat_id       = "ID чата team-a"
+telegram_admin_id      = "в telegram_id devops инженера"
+telegram_teamlead_id   = "telegram_id teamlead team-a"
+telegram_support_id    = "telegram_id дежурного техподдержки"
+bot_token              = "token telegram бота вида 123456789:ABCdefGhI-jklMnoPQRstuVwxYZ"
+vless_subscription_url = "URL вашей VLESS-подписки для mihomo-прокси"
 EOF
 ```
 
-2. Перегенерируйте values и манифест Secret с токеном бота:
+2. Перегенерируйте values, манифест Secret с токеном бота и манифест mihomo-прокси:
 
 ```bash
 terraform apply
 ```
 
-> `terraform apply` рендерит файл `impulse-telegram-secret.yaml` (манифест Namespace `impulse` + Secret `impulse-telegram-secrets` с ключом `bot-token`) из переменной `bot_token`. Токен кодируется в base64 и не светится в values-файле. Сам файл `impulse-telegram-secret.yaml` добавлен в `.gitignore`.
+> `terraform apply` рендерит:
+> - `impulse-telegram-secret.yaml` (манифест Namespace `impulse` + Secret
+>   `impulse-telegram-secrets` с ключом `bot-token`) из переменной `bot_token`;
+> - `mihomo-vless-proxy.yaml` (манифест Namespace `mihomo` + Secret с URL
+>   VLESS-подписки + Deployment + Service + NetworkPolicy) из переменной
+>   `vless_subscription_url`.
+>
+> Токен и URL подписки кодируются и не светятся в values-файле. Сами файлы
+> `impulse-telegram-secret.yaml` и `mihomo-vless-proxy.yaml` добавлены в
+> `.gitignore`.
 
-3. Примените манифест Secret в кластере вручную:
+3. Примените манифесты в кластере вручную:
 
 ```bash
+kubectl apply -f mihomo-vless-proxy.yaml
 kubectl apply -f impulse-telegram-secret.yaml
 ```
 
-> Secret `impulse-telegram-secrets` в namespace `impulse` создаётся вручную через `kubectl apply -f impulse-telegram-secret.yaml` после `terraform apply`. Terraform не вызывает kubectl напрямую — это избегает ошибок доступа к API кластера во время `apply`. При смене `bot_token` в `terraform.tfvars` повторный `terraform apply` перегенерирует `impulse-telegram-secret.yaml`, после чего его нужно повторно применить `kubectl apply -f impulse-telegram-secret.yaml`.
+> Secret `impulse-telegram-secrets` в namespace `impulse` и манифест
+> mihomo-прокси в namespace `mihomo` создаются вручную через `kubectl apply -f`
+> после `terraform apply`. Terraform не вызывает kubectl напрямую — это избегает
+> ошибок доступа к API кластера во время `apply`. При смене `bot_token` или
+> `vless_subscription_url` в `terraform.tfvars` повторный `terraform apply`
+> перегенерирует файлы, после чего их нужно повторно применить через
+> `kubectl apply -f`.
 
 ### 5. Установка Impulse
 
@@ -189,6 +211,13 @@ helm upgrade --install impulse impulse/impulse \
 ```
 
 Шаблон values: [`values/values-impulse.yaml.tftpl`](values/values-impulse.yaml.tftpl) (рендерится в `values/values-impulse.yaml`).
+
+> Impulse отправляет алерты в Telegram через mihomo VLESS-прокси. В
+> `values/values-impulse.yaml` уже заданы env `HTTPS_PROXY`/`http_proxy`/
+> `NO_PROXY` (`http://mihomo-proxy.mihomo.svc.cluster.local:1080`) — Impulse
+> использует `aiohttp.ClientSession` с `trust_env=True`, поэтому читает эти env
+> и маршрутизирует запросы к `api.telegram.org` через mihomo → VLESS. Подробности
+> — в [`INFRASTRUCTURE.md`](INFRASTRUCTURE.md), раздел «Шаг 2. VLESS-прокси».
 
 ## Доступ к сервисам
 

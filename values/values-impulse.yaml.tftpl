@@ -1,6 +1,18 @@
 config:
   env:
     LOG_LEVEL: "DEBUG"
+    # Impulse отправляет алерты в Telegram через mihomo VLESS-прокси. Impulse
+    # использует aiohttp.ClientSession с trust_env=True (app/http_client/session.py),
+    # поэтому читает env HTTPS_PROXY/http_proxy/NO_PROXY из окружения. Прокси
+    # маршрутизирует в VLESS только Telegram-домены (api.telegram.org, t.me, …),
+    # остальное — DIRECT. mihomo поднимается в namespace `mihomo` отдельным
+    # Deployment + Service (манифест mihomo-vless-proxy.yaml, рендерится Terraform).
+    # NO_PROXY исключает внутрикластерный трафик (webhook из Alertmanager,
+    # self-call Impulse) — он не должен идти через прокси.
+    HTTPS_PROXY: "http://mihomo-proxy.mihomo.svc.cluster.local:1080"
+    https_proxy: "http://mihomo-proxy.mihomo.svc.cluster.local:1080"
+    NO_PROXY: "127.0.0.1,localhost,.svc,.cluster.local,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
+    no_proxy: "127.0.0.1,localhost,.svc,.cluster.local,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16"
 impulseConfig:
   incident:
     notifications:
