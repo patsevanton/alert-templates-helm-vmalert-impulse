@@ -30,8 +30,8 @@ resource "yandex_kubernetes_cluster" "impulse" {
   master {
     version = "1.33" # Версия Kubernetes мастера
     zonal {
-      zone      = yandex_vpc_subnet.impulse-a.zone # Зона размещения мастера
-      subnet_id = yandex_vpc_subnet.impulse-a.id   # Подсеть для мастера
+      zone      = yandex_vpc_subnet.impulse-b.zone # Зона размещения мастера
+      subnet_id = yandex_vpc_subnet.impulse-b.id   # Подсеть для мастера
     }
 
     public_ip = true # Включение публичного IP для доступа к мастеру
