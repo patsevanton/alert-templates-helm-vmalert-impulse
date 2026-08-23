@@ -1,6 +1,3 @@
-# Получаем информацию о конфигурации клиента Yandex
-data "yandex_client_config" "client" {}
-
 # Создание сервисного аккаунта для управления Kubernetes
 resource "yandex_iam_service_account" "sa-k8s-editor" {
   name = "sa-k8s-editor" # Имя сервисного аккаунта
@@ -9,7 +6,7 @@ resource "yandex_iam_service_account" "sa-k8s-editor" {
 # Назначение роли "editor" сервисному аккаунту на уровне папки
 resource "yandex_resourcemanager_folder_iam_member" "sa-k8s-editor-permissions" {
   role      = "editor" # Роль, дающая полные права на ресурсы папки
-  folder_id = data.yandex_client_config.client.folder_id
+  folder_id = var.folder_id
   member    = "serviceAccount:${yandex_iam_service_account.sa-k8s-editor.id}" # Назначаемый участник
 }
 
