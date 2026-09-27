@@ -78,3 +78,21 @@ variable "vless_subscription_url" {
   description = "URL VLESS-подписки для mihomo-прокси (поднимается в namespace mihomo). Импульс отправляет алерты в Telegram через этот прокси"
   sensitive   = true
 }
+
+# Пароли встроенного MySQL (subchart stable/mysql) для Mattermost. Чувствительные
+# данные — не выводятся в terraform output и не попадают в git (terraform.tfvars
+# в .gitignore). Рендерятся в values/values-mattermost.yaml (в .gitignore) при
+# terraform apply. Задаются явно, а не генерируются subchart'ом: при пустых
+# паролях mysql-шаблон генерирует randAlphaNum на каждом helm upgrade и
+# пересоздаёт Secret → БД ломается.
+variable "mattermost_mysql_root_password" {
+  type        = string
+  description = "Пароль root встроенного MySQL (subchart) для Mattermost"
+  sensitive   = true
+}
+
+variable "mattermost_mysql_password" {
+  type        = string
+  description = "Пароль пользователя mmuser встроенного MySQL (subchart) для Mattermost"
+  sensitive   = true
+}

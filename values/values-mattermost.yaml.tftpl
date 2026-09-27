@@ -1,0 +1,65 @@
+# Values для mattermost/mattermost-team-edition (Team Edition, OSS, без лицензии).
+# Рендерится Terraform из values-mattermost.yaml.tftpl с плейсхолдером ${lb_ip}
+# (sslip.io-хост mattermost.<LB_IP>.sslip.io) и паролями MySQL из terraform.tfvars.
+# Установка вручную (не helm_release):
+#   helm upgrade --install mattermost mattermost/mattermost-team-edition \
+#     --namespace mattermost --create-namespace \
+#     -f values/values-mattermost.yaml
+
+# Recreate вместо RollingUpdate: одна реплика + RWO PVC (data/plugins) —
+# новый под не сможет смонтировать диск, пока его держит старый (тот же
+# класс дедлока, что у Impulse при replicaCount: 1 + RWO PVC).
+deploymentStrategy:
+  type: Recreate
+
+persistence:
+  data:
+    enabled: true
+    size: 10Gi
+    storageClass: yc-network-hdd
+    accessMode: ReadWriteOnce
+  plugins:
+    enabled: true
+    size: 1Gi
+    storageClass: yc-network-hdd
+    accessMode: ReadWriteOnce
+
+# Встроенный subchart stable/mysql (единственный встроенный БД-вариант чарта;
+# PostgreSQL-subchart в mattermost-team-edition нет — для Postgres нужен externalDB).
+# Пароли задаются явно (var из terraform.tfvars): при пустых паролях subchart
+# генерирует randAlphaNum на каждом helm upgrade и пересоздаёт Secret → БД ломается.
+mysql:
+  enabled: true
+  mysqlRootPassword: "${mattermost_mysql_root_password}"
+  mysqlUser: "mmuser"
+  mysqlPassword: "${mattermost_mysql_password}"
+  mysqlDatabase: "mattermost"
+  persistence:
+    enabled: true
+    storageClass: yc-network-hdd
+    accessMode: ReadWriteOnce
+    size: 10Gi
+
+ingress:
+  enabled: true
+  className: nginx
+  path: /
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    # Загрузка файлов/картинок в посты и вебхуки с вложениями
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+  hosts:
+    - mattermost.${lb_ip}.sslip.io
+  tls:
+    - secretName: mattermost-tls
+      hosts:
+        - mattermost.${lb_ip}.sslip.io
+
+# Конфигурация Mattermost инжектится в под как env-переменные MM_<GROUP>_<SETTING>
+config:
+  MM_PLUGINSETTINGS_CLIENTDIRECTORY: "./client/plugins"
+  # SiteURL обязателен: используется для генерации ссылок, URL входящих
+  # вебхуков и OAuth-редиректов
+  MM_SERVICESETTINGS_SITEURL: "https://mattermost.${lb_ip}.sslip.io"

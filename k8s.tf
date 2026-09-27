@@ -155,6 +155,14 @@ locals {
     telegram_support_id  = var.telegram_support_id
   })
 
+  # Рендер values Mattermost (Team Edition + встроенный MySQL subchart) из
+  # шаблона с sslip.io-хостом и паролями MySQL из terraform.tfvars.
+  mattermost_values = templatefile("${path.module}/values/values-mattermost.yaml.tftpl", {
+    lb_ip                         = local.lb_ip
+    mattermost_mysql_root_password = var.mattermost_mysql_root_password
+    mattermost_mysql_password      = var.mattermost_mysql_password
+  })
+
   cluster_issuer = templatefile("${path.module}/cluster-issuer.yaml.tftpl", {
     acme_email = local.acme_email
   })
@@ -191,6 +199,16 @@ resource "local_file" "vmks_values" {
 resource "local_file" "impulse_values" {
   content         = local.impulse_values
   filename        = "${path.module}/values/values-impulse.yaml"
+  file_permission = "0644"
+}
+
+# Рендер values Mattermost из шаблона с актуальным IP балансировщика и паролями MySQL.
+# Применяется пользователем вручную через `helm upgrade --install mattermost
+# mattermost/mattermost-team-edition -n mattermost --create-namespace
+# -f values/values-mattermost.yaml` (установка вручную, не helm_release).
+resource "local_file" "mattermost_values" {
+  content         = local.mattermost_values
+  filename        = "${path.module}/values/values-mattermost.yaml"
   file_permission = "0644"
 }
 
@@ -258,6 +276,11 @@ output "vmalert_url" {
 output "impulse_url" {
   description = "URL Impulse (сформирован через sslip.io из публичного IP балансировщика)"
   value       = "https://impulse.${local.lb_ip}.sslip.io"
+}
+
+output "mattermost_url" {
+  description = "URL Mattermost (сформирован через sslip.io из публичного IP балансировщика)"
+  value       = "https://mattermost.${local.lb_ip}.sslip.io"
 }
 
 output "grafana_admin_user" {
